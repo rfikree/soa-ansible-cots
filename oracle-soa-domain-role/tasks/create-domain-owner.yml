@@ -1,0 +1,12 @@
+---
+# task to create the domain specific user
+- name: Create domain owner
+  user:
+    name: "{{ domain_owner }}"
+    comment: Domain owner
+    uid: 1200
+    group: "{{ fmw_group }}"
+    generate_ssh_key: yes
+    ssh_key_bits: 2048
+    ssh_key_file: .ssh/id_rsa
+    state: present

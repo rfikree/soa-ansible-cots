@@ -1,0 +1,21 @@
+---
+# Test group_vars
+- hosts: "{{ stack }}"
+  any_errors_fatal: true
+  gather_facts: no
+  become: true
+
+  vars:
+    template_source: files/weblogic
+    host_vars: "{{ hostvars[inventory_hostname] }}"
+    domain_vars: "{{ host_vars['%s' | format(domain_name)] }}"
+    common_vars: "{{ host_vars['%s_common' | format(domain_name)] }}"
+    server_vars: "{{ host_vars['%s_servers' | format(domain_name)] }}"
+
+  tasks:
+    - name: Collect only the minimum facts
+      setup:
+        gather_subset: min
+
+  roles:
+    - oracle-soa-domain-role

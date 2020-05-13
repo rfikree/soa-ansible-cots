@@ -1,0 +1,99 @@
+---
+# Group variables to define domain attributes
+a5d50d1:
+  domain_name: a5d50d1
+  domain_owner: dev50
+  extend_domain: yes
+  rcu_database:
+    database_type: ORACLE
+    connect_string: '192.168.99.12:1521:soapdb'
+    db_user: SYS
+    db_role: SYSDBA
+    schema_prefix: d50d1
+    password_file: d50d1_password.txt
+  database:
+    db_connect_string : 'jdbc:oracle:thin:@//192.168.99.12:1521/soapdb'
+    db_password : password1
+    db_prefix : d50d1
+  security:
+    name: system
+    password: password1
+  admin_server:
+    name: AdminServer
+    host: soa_server_1
+    listen_address: "{{ a5d50d1_common.hosts.host_adm }}"
+    listen_port: 8001
+    machine: a5d50d1-m1
+  machines:
+    - machine:
+      name: a5d50d1-m1
+      nm_type: Plain
+      listen_address: 192.168.99.43
+      listen_port: 8001
+    - machine:
+      name: a5d50d1-m2
+      nm_type: Plain
+      listen_address: 192.168.99.44
+      listen_port: 8001
+  clusters:
+    - cluster:
+        server_groups:
+          - SOA-MGD-SVRS
+        templates:
+          - soa/common/templates/wls/oracle.soa_template.jar
+        name: soa
+        type: soa
+        managed_servers:
+        - server:
+          host: soa_server_1
+          name: soa-ms-1
+          listen_address: 192.168.99.41
+          listen_port: 8001
+          machine: a5d50d1-m1
+        - server:
+          host: soa_server_2
+          name: soa-ms-2
+          listen_address: 192.168.99.42
+          listen_port: 8001
+          machine: a5d50d1-m2
+    - cluster:
+        server_groups:
+          - ESS-MGD-SVRS
+        templates:
+          - oracle_common/common/templates/wls/oracle.ess.basic_template.jar
+          - em/common/templates/wls/oracle.em_ess_template.jar
+        name: ess
+        type: ess
+        managed_servers:
+        - server:
+          host: soa_server_1
+          name: ess-ms-1
+          listen_address: 192.168.99.41
+          listen_port: 8003
+          machine: a5d50d1-m1
+        - server:
+          host: soa_server_2
+          name: ess-ms-2
+          listen_address: 192.168.99.42
+          listen_port: 8003
+          machine: a5d50d1-m2
+    - cluster:
+        server_groups:
+          - BAM12-MGD-SVRS
+        templates:
+          - soa/common/templates/wls/oracle.bam.server_template.jar
+        name: bam
+        type: bam
+        managed_servers:
+        - server:
+          host: soa_server_1
+          name: bam-ms-1
+          listen_address: 192.168.99.41
+          listen_port: 8005
+          machine: a5d50d1-m1
+        - server:
+          host: soa_server_2
+          name: bam-ms-2
+          listen_address: 192.168.99.42
+          listen_port: 8005
+          machine: a5d50d1-m2

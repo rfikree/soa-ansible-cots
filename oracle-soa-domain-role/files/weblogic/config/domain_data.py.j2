@@ -1,0 +1,78 @@
+{% set common = a5d50d1_common %}
+domain= {
+    "Log" : {
+        "BufferSizeKB": {{ common.log_buffer_size }},
+        "DateFormatPattern": "{{ server_common.log.date_format_pattern }}",
+        "FileCount": {{ server_common.log.file_count }},
+        "FileName": "{{ common.log_root_dir }}/servers/{{ domain_vars.domain_name }}.log",
+        "LogFileRotationDir": "{{ common.log_root_dir }}/servers/history/{{ domain_vars.domain_name }}",
+        "RotationTime": "{{ server_common.log.rotation_time }}",
+        "RotationType": "{{ server_common.log.rotation_type }}"
+    },
+    "Servers": {
+    {% set common_config = server_vars.server_common %}
+    {% set keystore_config = server_vars.server_common.keystore %}
+    {% set log_config = server_vars.server_common.log %}
+    {% set ssl_config = server_vars.server_common.ssl %}
+    {% for server in server_vars.servers %}
+        {%set server_name = server.keys() | first %}
+        "{{ server_name }}": {
+            "KeyStores": "{{ keystore_config.key_stores }}",
+            "CustomIdentityKeyStoreFileName": "{{ keystore_config.custom_identity_key_store_file_name }}",
+            "CustomIdentityKeyStorePassPhraseEncrypted": "{{ keystore_config.ssl_key_pass_phrase }}",
+            "CustomIdentityKeyStoreType": "{{ keystore_config.key_store_type }}",
+            "CustomTrustKeyStoreFileName": "{{ keystore_config.custom_trust_key_store_file_name }}",
+            "CustomTrustKeyStorePassPhraseEncrypted": "{{ keystore_config.ssl_key_pass_phrase }}",
+            "CustomTrustKeyStoreType": "{{ keystore_config.key_store_type }}",
+            "ServerStart": {
+                "Arguments" : "{{ server[server_name].server_start.arguments | join( ' ' )}}"
+            },
+            "Log": {
+                "DateFormatPattern": "{{ log_config.date_format_pattern }}",
+                "FileCount": {{ log_config.file_count }},
+                "FileName": "{{common.log_dir}}/{{domain_name}}-{{ server_name | lower }}.log",
+                "LogFileRotationDir": "{{ common.log_rotation_root_dir }}/{{ domain_name }}-{{ server_name | lower}}",
+                "RedirectStderrToServerLogEnabled": {{ log_config.redirect_stdout }},
+                "RedirectStdoutToServerLogEnabled": {{ log_config.redirect_stderr }},
+                "RotationTime": "{{ log_config.rotation_time }}",
+                "RotationType": "{{ log_config.rotation_type }}",
+                "BufferSizeKB": {{ log_config.buffer_size }}
+            },
+            "SSL" : {
+                "Enabled": {{ ssl_config.enabled }},
+                "ListenPort": {{ server[server_name].ssl.listen_port }},
+                "JSSEEnabled": {{ ssl_config.jsse_enabled }},
+                "ServerPrivateKeyAlias": "{{ ssl_config.server_private_key_alias }}",
+                "ServerPrivateKeyPassPhraseEncrypted": "{{ ssl_config.server_private_key_pass_phrase }}",
+            },
+            "WebServer" : {
+                "WebServerLog" : {
+                    "DateFormatPattern": "{{ common_config.web_server.web_server_log.date_format_pattern }}",
+                    "LogFileFormat": "{{ common_config.web_server.web_server_log.log_file_format }}",
+                    "ELFFields": "{{ common_config.web_server.web_server_log.elf_fields }}",
+                    "FileCount": {{ common_config.web_server.web_server_log.file_count }},
+                    "FileName": "{{common.log_dir}}/{{domain_name}}-{{ server_name | lower }}-access.log",
+                    "LogFileRotationDir": "{{ common.log_rotation_root_dir }}/{{ domain_name }}-{{ server_name | lower }}",
+                    "RotationType": "{{ common_config.web_server.web_server_log.rotation_type }}",
+                    "BufferSizeKB": {{ common_config.web_server.web_server_log.buffer_size }},
+                },
+            },
+            {% set network_access_points = server[server_name].network_access_points %}
+            "NetworkAccessPoints" : {
+                {%set http_channel = network_access_points["Mgnt-Intf-Http-Channel"] %}
+                "Mgnt-Intf-Http-Channel": {
+                    "ListenAddress": "{{ http_channel.listen_address }}",
+                    "ListenPort": {{ http_channel.listen_port }},
+                    "Protocol": "{{ http_channel.protocol }}",
+                },
+                {%set https_channel = network_access_points["Mgnt-Intf-Https-Channel"] %}
+                "Mgnt-Intf-Https-Channel": {
+                    "ListenAddress": "{{ https_channel.listen_address }}",
+                    "ListenPort": {{ https_channel.listen_port }},
+                    "Protocol": "{{ https_channel.protocol }}",
+                }
+            }
+        },
+    {% endfor %}
+    }
+}

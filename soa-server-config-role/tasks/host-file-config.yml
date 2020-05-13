@@ -1,0 +1,13 @@
+---
+# configure network
+- name: Add mappings to /etc/hosts
+  become: yes
+  blockinfile:
+    path: /etc/hosts
+    block: |
+      192.168.99.40  soa-admin
+      192.168.99.42  soa-ms1
+      192.168.99.41  soa-ms2
+      192.168.99.90  soa-server-1 soa-nm1
+      192.168.99.43  soa-nm2
+      192.168.99.91  soa-server-2

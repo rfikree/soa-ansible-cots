@@ -1,0 +1,7 @@
+---
+# defaults file for disk_config
+fmw_group: { name: mwg, gid: 800 }
+fmw_users:
+  - { login: jdkowner, comment: Java JDK owner, uid: 800, groups: mwg }
+  - { login: mw, comment: FMW Middleware owner, uid: 700, groups: mwg }
+  - { login: soauser, comment: SOA dowmain owner, uid: 1050, groups: mwg }

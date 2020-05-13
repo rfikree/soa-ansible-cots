@@ -1,0 +1,30 @@
+---
+# Test group_vars
+- hosts: "{{ stack }}"
+  gather_facts: no
+  become: true
+
+  vars:
+    template_source: files/weblogic
+    host_vars: "{{ hostvars[inventory_hostname] }}"
+    domain_vars: "{{ host_vars['%s' | format(domain_name)] }}"
+    common_vars: "{{ host_vars['%s_common' | format(domain_name)] }}"
+    server_vars: "{{ host_vars['%s_servers' | format(domain_name)] }}"
+    server_common: "{{server_vars.server_common}}"
+
+  tasks:
+    # - name: test variable
+    #   debug:
+    #     msg: "{{ host_var }}"
+
+    # - name: domain_vars
+    #   debug:
+    #     msg: "{{ host_var['%s' | format(domain_name)] }}"
+
+    - name: server_vars
+      debug:
+        msg: "{{server_vars.server_common}}"
+
+    - name: show value
+      debug:
+        msg: "{{ server_common.key_stores.custom_identity_key_store_file_name }}"

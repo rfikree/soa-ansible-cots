@@ -1,0 +1,69 @@
+'''
+Created on Feb. 11, 2020
+
+@author: Reza Fikree
+'''
+
+import domain
+import sys
+from domain import LogHelper
+
+class BamCQService:
+    bam_cluster ={% for cluster_list in domain_vars.clusters if cluster_list.cluster.type == 'bam' %}
+    '{{ domain_vars.domain_name }}-{{ cluster_list.cluster.name | e}}-cluster'
+    {% endfor %}
+    domain_home = '{{ common_vars.domain_dir }}/{{ domain_vars.domain_name }}'
+    bam_cq_jms_server_pattern = 'BamCQServiceJmsServer'
+
+    def __init__(self):
+        self.readDomain = domain.wlst.get('readDomain')
+        self.cd = domain.wlst.get('cd')
+        self._set = domain.wlst.get('set')
+        self.updateDomain = domain.wlst.get('updateDomain')
+        self.closeDomain = domain.wlst.get('closeDomain')
+        self.__create_logger()
+        return
+
+    def __update_jms_server(self):
+        root = self.cd('/')
+        jms_servers = root.getJMSServers()
+        self.logger.info('Updating BamCQServiceJmsServer')
+        # Update the targets of the persistent store to be
+        # the same as that of the JMS Server
+        for jms_server in jms_servers:
+            jms_server_name = jms_server.name
+            self.logger.info('Updating the target of the persistent store')
+            if(jms_server_name.startswith(self.bam_cq_jms_server_pattern)):
+                targets = jms_server.getTargets()
+                persistent_store = jms_server.getPersistentStore()
+                self.logger.info('Setting the target of %s to %s' % (persistent_store.name, targets))
+                persistent_store.setTargets(targets)
+
+    def __update_jms_module(self):
+        self.cd('/JMSSystemResource/BamCQServiceJmsSystemModule')
+        self.logger.info('Changing the target of BamCQServiceJmsSystemModule to %s' % self.bam_cluster)
+        self._set('Target', self.bam_cluster)
+
+    def fix_bam_cq_jms(self):
+        self.readDomain(self.domain_home)
+        self.__update_jms_server()
+        self.__update_jms_module()
+        self.logger.info('Updating the domain')
+        self.updateDomain()
+        self.closeDomain()
+
+    def __create_logger(self):
+        self.logger = LogHelper('DomainExtend')
+
+
+def main():
+    bam_cq_service = BamCQService()
+    bam_cq_service.fix_bam_cq_jms()
+
+if __name__ == 'main':
+    domain.wlst = globals()
+    main()
+
+if __name__ == '__main__':
+    print 'Running as a Jython module is not supported. Please run from wlst command'
+    sys.exit(2)

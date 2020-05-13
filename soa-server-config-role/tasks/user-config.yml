@@ -1,0 +1,15 @@
+---
+# task to create user and groups for the soa domain
+- name: create mwg group
+  group:
+    name: "{{ fmw_group.name }}"
+    gid: "{{ fmw_group.gid }}"
+
+- name: create users
+  user:
+    name: "{{ item.login }}"
+    comment: "{{ item.comment }}"
+    uid: "{{ item.uid }}"
+    groups: "{{ item.groups }}"
+  loop:
+    "{{ fmw_users }}"

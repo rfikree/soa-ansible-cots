@@ -1,0 +1,96 @@
+'''
+Created on Feb. 24, 2020
+
+@author: Reza Fikree
+'''
+import sys
+import domain
+from domain import LogHelper
+
+class AdminNodeManager:
+    domain = {
+        'name' : '{{ domain_vars.domain_name }}',
+        'domain_dir' : '{{ common_vars.domain_dir }}',
+        'domain_home' : '{{ common_vars.domain_dir }}/{{ domain_vars.domain_name }}'
+    }
+
+    node_manager_security = {
+        'name' : '{{ domain_vars.security.name }}',
+        'password' : '{{ domain_vars.security.password }}'
+    }
+
+    admin_server = {
+        'ListenAddress' : '{{ domain_vars.admin_server.listen_address }}',
+        'ListenPort' : {{ domain_vars.admin_server.listen_port }},
+        'Machine' : '{{ domain_vars.admin_server.machine }}'
+    }
+
+    def __init__(self):
+        self._set = domain.wlst.get('set')
+        self.cd = domain.wlst.get('cd')
+        self._create = domain.wlst.get('create')
+        self.readDomain = domain.wlst.get('readDomain')
+        self.writeDomain = domain.wlst.get('writeDomain')
+        self.updateDomain = domain.wlst.get('updateDomain')
+        self.closeDomain = domain.wlst.get('closeDomain')
+        self.closeTemplate = domain.wlst.get('closeTemplate')
+        self.encrypt = domain.wlst.get('encrypt')
+        self.startNodeManager = domain.wlst.get('startNodeManager')
+
+        self.create_logger()
+
+    #------------------------------------------------------
+    # Configure Admin Node Manager
+    #------------------------------------------------------
+    def __config_admin_node_manager(self):
+        self.cd('/Servers/AdminServer')
+        self.logger.info('Assigning machine: %(Machine)s to AdminServer' % self.admin_server )
+        self._set('Machine', self.admin_server['Machine'])
+        self.cd('/NMProperties')
+        self.logger.info('Configuring Node Manager')
+        self._set('SecureListener', False)
+        # allow script to stop node manager
+        self._set('QuitEnabled', True)
+
+    def __update_node_manager_security(self):
+        self.logger.info('Updating node manager security at the domain level')
+        self.cd('/SecurityConfiguration/%s' % self.domain['name'])
+        self._set('NodeManagerUsername', self.node_manager_security['name'])
+
+        # encrypt the password
+        nm_pwd=self.encrypt(self.node_manager_security['password'], self.domain['domain_home'])
+        self._set('NodeManagerPasswordEncrypted', nm_pwd)
+
+    def __start_node_manager(self):
+        nm_properties  = {
+            'verbose' : 'true',
+            'block' : 'false',
+            'timeout' : 30000,
+            'domainName' : self.domain['name'],
+            'domainDir' : self.domain['domain_home'],
+            'PropertiesFile' : '%s/nodemanager/nodemanager.properties' % self.domain['domain_home']
+        }
+        self.logger.info('Starting Admin node manager with properties: %s' % nm_properties)
+        self.startNodeManager(**nm_properties)
+
+    def create_logger(self):
+        self.logger = LogHelper('FmwDomain')
+
+    def main(self):
+        self.logger.info('Reading domain %(domain_home)s' % self.domain)
+        self.readDomain(self.domain['domain_home'])
+        self.__config_admin_node_manager()
+        self.__update_node_manager_security()
+        self.updateDomain()
+        self.closeDomain()
+        {# self.__start_node_manager() #}
+
+if __name__ == 'main':
+    domain.wlst = globals()
+    admin_node_manager = AdminNodeManager()
+    admin_node_manager.main()
+    sys.exit(0)
+
+if __name__ == '__main__':
+    print 'Running as a Jython module is not supported. Please run from wlst command'
+    sys.exit(2)

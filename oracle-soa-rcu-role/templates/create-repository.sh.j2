@@ -1,0 +1,22 @@
+#!/bin/bash
+/{{ fmw_home }}/oracle_common/bin/rcu \
+  -silent \
+  -createRepository \
+  -databaseType {{ database_type }} \
+  -connectString {{ connect_string }} \
+  -dbUser {{ db_user }} \
+  -dbRole {{ db_role }} \
+  -useSamePasswordForAllSchemaUsers true \
+  -selectDependentsForComponents true \
+  -variables SOA_PROFILE_TYPE=SMALL,HEALTHCARE_INTEGRATION=NO \
+  -schemaPrefix {{ schema_prefix }} \
+  -component STB \
+  -component ESS \
+  -component OPSS \
+  -component SOAINFRA \
+  -component UCSUMS \
+  -component IAU \
+  -component IAU_APPEND \
+  -component IAU_VIEWER \
+  -component MDS \
+  -component WLS \ -f < {{ password_file }}

@@ -1,0 +1,128 @@
+'''
+Created on Jan. 31, 2020
+
+@author: Reza Fikree
+'''
+from domain import validate_directory
+from domain import LogHelper
+from domain import create_cluster
+from domain import create_managed_server
+from domain import extend_domain
+import domain
+import sys
+
+class FmwDomain:
+
+    domain = {
+        'name' : '{{ domain_vars.domain_name }}',
+        'oracle_home' : '{{ fmw_home }}',
+        'java_home' : '{{ java_home }}',
+        'domain_dir' : '{{ common_vars.domain_dir }}'
+    }
+
+    security = {
+        'name' : '{{ domain_vars.security.name }}',
+        'password' : '{{ domain_vars.security.password }}'
+    }
+
+    admin_server = {
+        'ListenAddress' : '{{ domain_vars.admin_server.listen_address }}',
+        'ListenPort' : {{ domain_vars.admin_server.listen_port }}
+    }
+
+    extend_domain = {{ domain_vars.extend_domain }}
+
+    def __init__(self):
+        self.oracle_home = validate_directory(self.domain.get('oracle_home'))
+        self.java_home = validate_directory(self.domain.get('java_home'))
+        self.domain_parent_dir = validate_directory(self.domain.get('domain_dir'))
+
+        self.addTemplate = domain.wlst.get('addTemplate')
+        self.readTemplate = domain.wlst.get('readTemplate')
+        self.setOption = domain.wlst.get('setOption')
+        self._set = domain.wlst.get('set')
+        self.cd = domain.wlst.get('cd')
+        self._create = domain.wlst.get('create')
+        self.readDomain = domain.wlst.get('readDomain')
+        self.writeDomain = domain.wlst.get('writeDomain')
+        self.updateDomain = domain.wlst.get('updateDomain')
+        self.closeDomain = domain.wlst.get('closeDomain')
+        self.closeTemplate = domain.wlst.get('closeTemplate')
+
+        # soa suite specific
+        self.getDatabaseDefaults = domain.wlst.get('getDatabaseDefaults')
+        self.setServerGroups = domain.wlst.get('setServerGroups')
+        self.create_logger()
+
+        return
+
+    def __config_admin(self):
+        self.logger.info('Configuring the admin server')
+        self.cd('/Servers/AdminServer')
+        for param in self.admin_server:
+            self.logger.info('Setting server parameters %s:%s' % (param, self.admin_server[param]))
+            self._set(param, self.admin_server[param])
+
+    def __config_cluster(self):
+        # Create the cluster(s)
+        create_cluster.main()
+
+    def __config_managed_server(self):
+        # Create the managed server(s)
+        create_managed_server.main()
+
+    def __boot_properties(self):
+        self.logger.info('Updating server boot.proprites file')
+        security_dir = '%s/%s/servers/AdminServer/security' % (self.domain_parent_dir, self.domain_name)
+        validate_directory( security_dir, create=True)
+        boot_file = open('%s/boot.properties' % security_dir, 'w')
+        boot_file.write('username=%s\npassword=%s' % (self.security.get('name'), self.security.get('password')))
+        boot_file.close()
+
+    def create_domain(self):
+        self.domain_name = self.domain.get('name')
+        base_template = '%s/wlserver/common/templates/wls/wls.jar' % self.oracle_home
+        self.readTemplate(base_template)
+        # Set domain options
+        self.setOption('DomainName', self.domain_name)
+        self.setOption('JavaHome', self.java_home)
+        self.setOption('ServerStartMode', 'prod')
+        self.setOption('OverwriteDomain', 'true')
+        self._set('Name', self.domain_name)
+
+        # Configure security
+        self.logger.info('Configuring security')
+        self.cd('/Security/%s/User/weblogic' % self.domain_name)
+        self._set('Name', self.security.get('name'))
+        self._set('Password', self.security.get('password'))
+
+        # Configure the admin server
+        self.__config_admin()
+        self.__config_cluster()
+        self.__config_managed_server()
+        domain_home = '%s/%s' % (self.domain_parent_dir, self.domain_name)
+        self.logger.info('Writing base domain...%s' % domain_home)
+        self.writeDomain(domain_home)
+        self.closeTemplate()
+        self.__boot_properties()
+        self.logger.info('Base domain created at %s' % domain_home)
+
+        return domain_home
+
+    def create_logger(self):
+        self.logger = LogHelper('FmwDomain')
+
+def main():
+    # Create the base domain
+    fmwDomain = FmwDomain()
+    fmwDomain.create_domain()
+
+
+
+if __name__ == 'main':
+    domain.wlst = globals()
+    main()
+
+if __name__ == '__main__':
+    print 'Running as a Jython module is not supported. Please run from wlst command'
+    sys.exit(2)

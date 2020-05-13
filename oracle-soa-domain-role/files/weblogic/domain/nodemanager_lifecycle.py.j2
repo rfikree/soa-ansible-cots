@@ -1,0 +1,125 @@
+'''
+Created on Feb. 24, 2020
+
+@author: Reza Fikree
+'''
+import sys
+import domain
+from domain import LogHelper
+
+class NodeManager:
+    domain = {
+        'name' : '{{ domain_vars.domain_name }}',
+        'domain_dir' : '{{ common_vars.domain_dir }}',
+        'domain_home' : '{{ common_vars.domain_dir }}/{{ domain_vars.domain_name }}'
+    }
+
+    node_manager_security = {
+        'name' : '{{ domain_vars.security.name }}',
+        'password' : '{{ domain_vars.security.password }}'
+    }
+
+    admin_server = {
+        'ListenAddress' : '{{ domain_vars.admin_server.listen_address }}',
+        'ListenPort' : {{ domain_vars.admin_server.listen_port }},
+        'Machine' : '{{ domain_vars.domain_name }}-{{ domain_vars.admin_server.machine }}'
+    }
+
+    def __init__(self):
+        self._set = domain.wlst.get('set')
+        self.cd = domain.wlst.get('cd')
+        self._create = domain.wlst.get('create')
+        self.readDomain = domain.wlst.get('readDomain')
+        self.writeDomain = domain.wlst.get('writeDomain')
+        self.updateDomain = domain.wlst.get('updateDomain')
+        self.closeDomain = domain.wlst.get('closeDomain')
+        self.closeTemplate = domain.wlst.get('closeTemplate')
+        self.encrypt = domain.wlst.get('encrypt')
+        self.startNodeManager = domain.wlst.get('startNodeManager')
+        self.nmConnect = domain.wlst.get('nmConnect')
+        self.stopNodeManager = domain.wlst.get('stopNodeManager')
+        self.nm = domain.wlst.get('nm')
+
+        self.create_logger()
+
+    #------------------------------------------------------
+    # Configure Admin Node Manager
+    #------------------------------------------------------
+    def __start_node_manager(self):
+        nm_properties  = {
+            'verbose' : 'true',
+            'block' : 'false',
+            'timeout' : 30000,
+            'domainName' : self.domain['name'],
+            'domainDir' : self.domain['domain_home'],
+            'PropertiesFile' : '%s/nodemanager/nodemanager.properties' % self.domain['domain_home']
+        }
+        self.logger.info('Starting node manager with properties: %s' % nm_properties)
+        self.startNodeManager(**nm_properties)
+
+    def __node_manager_connect(self):
+        nmconnect_properties = {
+            'username' : self.node_manager_security['name'],
+            'password' : self.node_manager_security['password'],
+            'host' : self.admin_server['ListenAddress'],
+            'port' : self.admin_server['ListenPort'],
+            'domainName' : self.domain['name'],
+            'domainDir' : self.domain['domain_home'],
+            'nmType' : 'Plain'
+        }
+        self.logger.info('Connecting to node manager....')
+        self.nmConnect(**nmconnect_properties)
+
+    def __stop_node_manager(self):
+        connected = self.nm()
+        if not connected:
+            self.__node_manager_connect()
+        self.stopNodeManager()
+
+
+
+    def create_logger(self):
+        self.logger = LogHelper('FmwDomain')
+
+
+    def usage(self):
+        print '''\nNode Manager Life Cycle
+Usage: Pass either --start, --stop, --connect to manage the Node Manager
+
+Options:
+ -h, --help               Print this message
+ -s, --start              Starts the node manager
+ -t, --stop               Stops the node manager
+ -c, --connect            Connects to the node manager
+'''
+    def main(self, argv):
+        try:
+            opts, args = getopt.getopt(argv, 'hspc',  # @UnusedVariable
+                                       ['help', 'start', 'stop', 'connect'])
+        except getopt.GetoptError, err:
+            print 'Exception ... %s' % str(err)
+            self.usage()
+            exit(2)
+
+        for opt, arg in opts:  # @UnusedVariable
+            if opt in ('-h', '--help'):
+                self.usage()
+                exit(0)
+            if opt in ('-s', '--start'):
+                self.__start_node_manager()
+                self.__node_manager_connect()
+            if opt in ('-c', '--connect'):
+                self.__node_manager_connect()
+            if opt in ('-t', '--stop'):
+                self.__stop_node_manager()
+
+
+if __name__ == 'main':
+    domain.wlst = globals()
+    node_manager = NodeManager()
+    node_manager.main(sys.argv[1:])
+    sys.exit(0)
+
+if __name__ == '__main__':
+    print 'Running as a Jython module is not supported. Please run from wlst command'
+    sys.exit(2)

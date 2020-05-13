@@ -1,0 +1,18 @@
+#!/bin/bash
+set -euo pipefail
+#------------------------------------------------------------------------------
+# pack domain script
+#------------------------------------------------------------------------------
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+LOG_DIR="${HOME}/logs/{{ domain_vars.domain_name }}/${TIMESTAMP}"
+CONFIG_REDIRECT_LOG="${LOG_DIR}/config.out"
+
+#Create the log directory. Redirecting stdout will fail if the log directory
+#does not exist
+mkdir -p "${LOG_DIR}"
+
+/{{ common_vars.fmw_home }}/oracle_common/common/bin/pack.sh \
+  -managed=true \
+  -domain={{ common_vars.domain_dir }}/{{ domain_vars.domain_name }} \
+  -template={{ common_vars.scripts_home }}/{{ domain_vars.domain_name}}/{{ domain_vars.domain_name}}-template.jar \
+  -template_name={{ domain_vars.domain_name }}-domain-template 2>&1 | tee "${CONFIG_REDIRECT_LOG}"

@@ -1,0 +1,40 @@
+---
+# tasks file for oracle-soa-domain-role
+- name: set domain facts
+  set_fact:
+    domain_owner: "{{ common_vars.domain_owner }}"
+    fmw_group: "{{ common_vars.fmw_group }}"
+    fmw_home: "{{ common_vars.fmw_home }}"
+    java_home: "{{ common_vars.java_home }}"
+    domain_dir: "{{ common_vars.domain_dir }}/{{ domain_vars.domain_name }}"
+    server_common: "{{ server_vars.server_common }}"
+
+- name: create domain users
+  import_tasks: create-domain-owner.yml
+
+- name: create domain related directories
+  import_tasks: create-domain-dir.yml
+  when: (is_admin_server is defined and is_admin_server )
+
+- name: copy script templates
+  import_tasks: copy-script-templates.yml
+  when: (is_admin_server is defined and is_admin_server )
+
+- name: copy util scripts to both servers
+  import_tasks: copy-util-scripts.yml
+
+- name: copy ssl certs
+  import_tasks: copy-ssl-certs.yml
+
+- name: copy RCU metadata scripts
+  import_tasks: populate-rcu-metadata.yml
+  when: (is_admin_server is defined and is_admin_server )
+#
+# - name: create systemd services
+#   import_tasks: create_systemd.yml
+#
+# - name: execute script to create domain
+#   import_tasks: create-domain.yml
+
+# - name: execute script to create domain
+#   import_tasks: admin-server-control.yml

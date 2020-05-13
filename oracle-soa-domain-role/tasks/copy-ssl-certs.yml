@@ -1,0 +1,19 @@
+---
+# Copies ssl certs
+- name: Create target directories for  logging properties
+  become: yes
+  file:
+    path: "{{ common_vars.ssl_keystore_dir }}"
+    state: directory
+    group: "{{ common_vars.fmw_group }}"
+    mode: g+rw
+
+- name: copy SSL keys to the SSL directory
+  copy:
+    src: "files/certs/{{ item }}"
+    dest: "{{ common_vars.ssl_keystore_dir }}"
+    group: "{{ common_vars.fmw_group }}"
+    mode: g=r,o-rwx
+  loop:
+    - CPGIdentity.jks
+    - CPGTrust.jks

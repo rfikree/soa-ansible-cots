@@ -1,0 +1,101 @@
+from java.util.logging import Level, Logger
+import inspect
+import re
+import sys
+import os
+import com.oracle.cie.domain.script.jython.WLSTException as WLSTException
+from config.log_helper import LogHelper
+
+wlst = {}
+visited_mbean = {}
+regex = r'(?:^)(lookup|create|get|set|destroy|delete|are|is).*'
+encrypt_regex =  r"pass[phrase|word].*|encrypted" # regex to test encrypt required
+
+init_logger = LogHelper('domain-config')
+
+def validate_directory(dir_name, create=False):
+    directory = os.path.realpath(dir_name)
+    if not os.path.exists(directory):
+        if create:
+            os.makedirs(directory)
+        else:
+            message = 'Directory ' + directory + ' does not exist'
+            raise WLSTException(message)
+    elif not os.path.isdir(directory):
+        message = 'Directory ' + directory + ' is not a directory'
+        raise WLSTException(message)
+    return fix_path(directory)
+
+def fix_path(path):
+    result = path
+    if path is not None:
+        result = path.replace('\\', '/')
+    return result
+
+
+def test_encrypt(param, value):
+    encrypted = None
+    result = re.search(encrypt_regex, param, re.IGNORECASE)
+    if result:
+        encrypted = encrypt_password(value)
+
+    return bool(result), encrypted
+
+def __get_mbean_attr(proxy):
+    attr_map = {}
+    lookup = '%s/%s' % (proxy.name, proxy.type)
+    if not visited_mbean.get(lookup):
+        for d in dir(proxy):
+            if not re.match(regex, d):
+                attr_map[d.lower()] = d
+        visited_mbean[lookup] = attr_map
+    else:
+        init_logger.info('%s - already visited' % lookup)
+
+    return visited_mbean[lookup]
+
+# Config mbean takes a proxy (handle to the actual configuration MBean
+# and a dictionary of name value pairs.
+def config_mbean(proxy, mbean_dict):
+    # Name and Type attributes cannot be set. We will remove them
+    init_logger.info('Removing Name from %s data' % proxy.name)
+    mbean_dict.pop('Name', None)
+    init_logger.info('Removing Type from %s data' % proxy.name)
+    mbean_dict.pop('Type', None)
+    attr_map = __get_mbean_attr(proxy)
+    for param, value in mbean_dict.items():
+        init_logger.info('Configuring %s %s - %s'% (proxy.name, proxy.type, param))
+        attr_param = attr_map.get(param.lower())
+
+        if hasattr(proxy, attr_param):
+            set_value(proxy, attr_param, value)
+        else:
+            init_logger.warn('% does not have attribute: %s... skipping' % (proxy.name, attr_param))
+
+def set_value(proxy, param, value):
+    #Check to see if it is a child mbean - repesented by dict value.
+    if type(value) is dict:
+        init_logger.info('%s will be configured at a later stage' % param)
+        return
+
+    try:
+        #Test if the value of the paramter has to be encrypted and return the
+        #encrypted value
+        mask, encrypted = test_encrypt(param, value)
+
+        if mask: #if the value of mask is true, then do not display the value
+            log_value = '***********'
+            value = encrypted #replace the value with the encrypted value
+        else:
+            log_value = value
+
+        init_logger.info('Setting value %s - %s:%s' % (proxy.name, param, log_value))
+        setattr(proxy, param, value)
+    except WLSTException, e:
+        message = 'Failed to set value - %s:%s - %s' %  (param, value, e.getMessage())
+        raise WLSTException(message)
+
+def encrypt_password(password):
+    encrypt = wlst.get('encrypt')
+    encrypted = encrypt(password, '{{ common_vars.domain_dir }}/{{ domain_vars.domain_name }}')
+    return encrypted

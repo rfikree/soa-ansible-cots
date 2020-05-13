@@ -1,0 +1,156 @@
+'''
+Created on Mar. 15, 2020
+
+@author: Reza Fikree
+'''
+
+import re
+import com.oracle.cie.domain.script.jython.WLSTException as WLSTException
+import config
+from config.log_helper import LogHelper
+from config import validate_directory
+
+class JMSServerConfig:
+
+    domain_home = '{{ common_vars.domain_dir }}/{{ domain_vars.domain_name }}'
+    root_regex = r"FileStore.*" # Get the suffix of the filestore
+    target_regex = r"_.*$" # Only get the target name without the migratable target etc.
+    updated = False
+
+    jdbc_store_dict = {}
+
+    def __init__(self):
+        self.read_domain = config.wlst.get('readDomain')
+        self.update_domain = config.wlst.get('updateDomain')
+        self.close_domain = config.wlst.get('closeDomain')
+        self.cd = config.wlst.get('cd')
+        self.ls = config.wlst.get('ls')
+        self._get = config.wlst.get('get')
+        self._set = config.wlst.get('set')
+        self._create = None
+        self._delete = config.wlst.get('delete')
+        self.pwd = config.wlst.get('pwd')
+        self.create_logger()
+
+    def create_logger(self):
+        self.logger = LogHelper('jms-store-config')
+
+
+    def create_jdbc_store(self, name, data_source, prefix_name, target):
+        self.cd('/')
+        suffix = re.sub(self.target_regex, '', target )
+        jdbc_store_name = '%s-%s' % (name, suffix)
+        try:
+            self._create(jdbc_store_name, 'JDBCStore')
+            jdbc_store = self.cd('/JDBCStore/%s' % jdbc_store_name)
+            self._set('PrefixName', '%s-%s' % (prefix_name, suffix))
+            self._set('DataSource', data_source)
+            self._set('Target', target)
+            self.logger.info('Created JDBCStore: %s - DataSource: %s - Target: %s' % (jdbc_store_name, data_source, target ))
+            return jdbc_store
+        except WLSTException, e:
+            message = 'Failed to create JDBCStore %s\n%s' % (jdbc_store_name, e.getMessage())
+            raise WLSTException(message)
+
+    def delete_template_jdbc_store(self):
+        self.cd('/')
+        try:
+            for template in self.jdbc_store_dict:
+                jdbc_store = self.jdbc_store_dict[template][0]
+                self._delete(jdbc_store, 'JDBCStore')
+                self.logger.info('Deleted template JDBC Store: %s' % jdbc_store)
+        except WLSTException, e:
+            message = 'Failed to delete JDBCStore %s\n%s' % (jdbc_store, e.getMessage())
+            raise WLSTException(message)
+
+    def delete_file_store(self, name):
+        try:
+            self.cd('/')
+            self._delete(name, 'FileStore')
+            self.logger.info('Deleted File Store: %s' % name)
+        except WLSTException, e:
+            message = 'Failed to delete FileStore %s\n%s' % (name, e.getMessage())
+            raise WLSTException(message)
+
+    def read_template_jbdc_store(self):
+        global jdbc_store_list
+        jdbc_store_list = self.ls('/JDBCStores', returnMap='true')
+
+        self.logger.info('Reading JDBC Store templates')
+        for jdbc_store in jdbc_store_list:
+            try:
+                proxy=self.cd('/JDBCStores/%s' % jdbc_store)
+                data_source = proxy.getDataSource().name
+                prefix_name = proxy.getPrefixName()
+                self.jdbc_store_dict[jdbc_store.lower()]=(jdbc_store, data_source, prefix_name)
+                self.logger.info('Got JDBCStore template: %s - DataSource: %s - Prefix name: %s' % (jdbc_store, data_source, prefix_name))
+            except WLSTException, e:
+                message = 'Failed to read JDBC Store: %s\n%s' % (jdbc_store, e.getMessage())
+                raise WLSTException(message)
+
+    def convert_to_jdbc_store(self, delete_jdbc_template=True, delete_file_store=True):
+        jms_server_list = self.ls('/JMSServers', returnMap='true')
+        self.logger.info('Converting JMS Server persistent stores...')
+        for jms_server in jms_server_list:
+            self.cd('/JMSServers/%s' % jms_server)
+            persistent_store = self._get('PersistentStore').name
+            # Offline mode does not allow to find the type of a proxy
+            #  converting the proxy to String will allow to test the type value
+            #  for example 'Proxy for SOAJMSFileStore_auto_1: Name=SOAJMSFileStore_auto_1, Type=FileStore'
+            persistent_store_proxy_string = self._get('PersistentStore').toString()
+
+            #If the persistent store is not a file store skip
+            if not 'FileStore' in persistent_store_proxy_string:
+                continue
+
+            jdbc_store_lookup ='%sjdbcstore' % re.sub(self.root_regex, '', persistent_store).lower() #Get the template JDBC Store name
+            self.logger.info('JDBC store for lookup: %s' % jdbc_store_lookup)
+            targets = self._get('Target') #returns an array
+            #Only loop if the JMSServer has a target and has a template JDBC Store
+            if len(targets) > 0 and self.jdbc_store_dict.has_key(jdbc_store_lookup):
+                try:
+                    self.logger.info('Converting JMS Server %s persistent store %s' % (jms_server, persistent_store))
+                    target = self._get('Target')[0].name
+                    jdbc_store = self.jdbc_store_dict[jdbc_store_lookup][0]
+                    data_source = self.jdbc_store_dict[jdbc_store_lookup][1]
+                    prefix_name = self.jdbc_store_dict[jdbc_store_lookup][2]
+                    jbdc_store_proxy = self.create_jdbc_store(jdbc_store, data_source, prefix_name, target)
+                    self.cd('/JMSServers/%s' % jms_server)
+                    self._set('PersistentStore', jbdc_store_proxy)
+                    self.logger.info('Converted JMS Server %s persistent store to: %s' % (jms_server, jbdc_store_proxy.name))
+
+                    # delete file store
+                    if delete_file_store:
+                        self.delete_file_store(persistent_store)
+                    self.updated = True
+                except WLSTException, e:
+                    message = 'Failed to convert JMSServer: %s persistent store to : %s\n%s' % (jms_server, jdbc_store, e.getMessage())
+                    raise WLSTException(message)
+
+        # delete JDBC template
+        if delete_jdbc_template and self.updated:
+            self.delete_template_jdbc_store()
+
+    def main(self, delete_jdbc_template=True, delete_file_store=True):
+        self.logger.info('Reading domain for update:%s' % self.domain_home)
+        self.read_domain(validate_directory(self.domain_home))
+        self._create = config.wlst['create']
+        self.read_template_jbdc_store()
+        self.convert_to_jdbc_store(delete_jdbc_template, delete_file_store)
+        if self.updated:
+            try:
+                self.logger.info('Updating the domain')
+                self.update_domain()
+                self.close_domain()
+            except WLSTException, e:
+                message = 'Failed to update the domain:\n%s' % e.getMessage()
+                raise WLSTException(message)
+
+
+if __name__ == '__main__':
+    pass
+
+if __name__ == 'main':
+    config.wlst = globals()
+    jms_server_config = JMSServerConfig()
+    jms_server_config.main()

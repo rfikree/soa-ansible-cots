@@ -1,0 +1,14 @@
+---
+# defaults file for oracle-soa-install-role
+download_dir: /vagrant/software
+jdk_archive: jdk-8u241-linux-x64.tar.gz
+fmw_install_archive: V886426-01.zip
+soa_install_archive: V886423-01.zip
+oracle_home: /u01/oracle/products
+jdk_dest: /u01/oracle/products/jdk
+fmw_home: /u01/oracle/products/fmw/12.2.1.3.0
+fmw_install_type: "Fusion Middleware Infrastructure"
+soa_install_type: "SOA Suite"
+fmw_group: mwg
+fmw_owner: mw
+jdk_owner: jdkowner

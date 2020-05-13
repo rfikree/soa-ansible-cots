@@ -1,0 +1,11 @@
+---
+# defaults file for oracle-soa-install-role
+oracle_home: /u01/oracle
+fmw_home: /u01/oracle/products/fmw/12.2.1.3.0
+java_home: /u01/oracle/products/jdk/jdk1.8.0_241
+scripts_home: /u02/oracle/scripts
+domain_dir: /u02/oracle/config/domains
+fmw_install_type: "Fusion Middleware Infrastructure"
+soa_install_type: "SOA Suite"
+domain_user: dev50
+database_type: ORACLE

@@ -1,0 +1,72 @@
+'''
+Created on Jan. 31, 2020
+
+@author: Reza Fikree
+'''
+from domain import validate_directory
+from domain import LogHelper
+import domain
+import sys
+
+class EnrollMachine:
+
+    domain = {
+        'name' : '{{ domain_vars.domain_name }}',
+        'domain_dir' : '{{ common_vars.domain_dir }}/{{ domain_vars.domain_name }}'
+    }
+
+    security = {
+        'name' : '{{ domain_vars.security.name }}',
+        'password' : '{{ domain_vars.security.password }}'
+    }
+
+    admin_server = {
+        'ListenAddress' : '{{ domain_vars.admin_server.listen_address }}',
+        'ListenPort' : {{ domain_vars.admin_server.listen_port }}
+    }
+
+
+    def __init__(self):
+        self.domain_parent_dir = validate_directory(self.domain.get('domain_dir'))
+
+        self.connect = domain.wlst.get('connect')
+        self.disconnect = domain.wlst.get('disconnect')
+        self.nmEroll = domain.wlst.get('nm_enroll')
+        self.create_logger()
+
+        return
+
+    def __connect_admin(self):
+        self.logger.info('Connecting to the admin server')
+        connect_prop = {
+            'username': self.security['name'],
+            'password': self.security['password'],
+            'url': 't3://%(ListenAddress)s:%(ListenPort)s' % self.admin_server
+        }
+        self.connect(**connect_prop)
+
+    def __enroll_machine(self):
+        self.__connect_admin()
+        enroll_prop = {
+            'domainDir' : '%(domain_dir)s/%(domain_name)s' % domain
+            'nmHome' : '%(domain_dir)s/%(domain_name)s/nodemanager' % domain
+        }
+
+        self.logger.info('Enroll machine with admin server: %s' % enroll_prop)
+        self.nmEroll(**enroll_prop)
+
+    def create_logger(self):
+        self.logger = LogHelper('FmwDomain')
+
+def main():
+    # Create the base domain
+    enrollment = EnrollMachine()
+    enrollment.__enroll_machine()
+
+if __name__ == 'main':
+    domain.wlst = globals()
+    main()
+
+if __name__ == '__main__':
+    print 'Running as a Jython module is not supported. Please run from wlst command'
+    sys.exit(2)

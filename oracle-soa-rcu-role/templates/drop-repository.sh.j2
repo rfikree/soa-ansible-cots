@@ -1,0 +1,21 @@
+#!/bin/bash
+/{{ fmw_home }}/oracle_common/bin/rcu \
+  -silent \
+  -dropRepository \
+  -databaseType {{ database_type }} \
+  -connectString {{ connect_string }} \
+  -dbUser {{ db_user }} \
+  -dbRole {{ db_role }} \
+  -selectDependentsForComponents true \
+  -skipTablespaceDrop false \
+  -schemaPrefix {{ schema_prefix }} \
+  -component STB \
+  -component ESS \
+  -component OPSS \
+  -component SOAINFRA \
+  -component UCSUMS \
+  -component IAU \
+  -component IAU_APPEND \
+  -component IAU_VIEWER \
+  -component MDS \
+  -component WLS \ -f < {{ password_file }}

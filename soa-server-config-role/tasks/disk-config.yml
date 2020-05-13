@@ -1,0 +1,32 @@
+---
+- name: Create a new primary partition for LVM
+  parted:
+    device: "/dev/{{ item }}"
+    number: 1
+    flags: [ lvm ]
+    state: present
+  loop:
+    - sdb
+    - sdc
+
+- name: Create a xfs filesystem on /dev/sdb1 and /dev/sdb2
+  filesystem:
+    fstype: xfs
+    dev: "/dev/{{ item }}"
+  loop:
+    - sdb1
+    - sdc1
+
+- name: Mount u01 - software
+  mount:
+    path: /u01
+    src: /dev/sdb1
+    fstype: xfs
+    state: mounted
+
+- name: Mount u02 - config
+  mount:
+    path: /u02
+    src: /dev/sdc1
+    fstype: xfs
+    state: mounted

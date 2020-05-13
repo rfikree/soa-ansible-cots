@@ -1,0 +1,72 @@
+'''
+Created on Feb. 3, 2020
+
+@author: Reza Fikree
+'''
+from domain import LogHelper
+import domain
+import sys
+
+
+class ManagedServer:
+    managed_servers = {
+    {% for cluster_list in domain_vars.clusters %}
+        {% for managed_server in cluster_list.cluster.managed_servers %}
+        '{{ managed_server.name | e}}' : {
+            'ListenAddress': '{{ managed_server.listen_address | e }}',
+            'ListenPort': {{ managed_server.listen_port }},
+            'Machine': '{{ managed_server.machine }}',
+            'Cluster': '{{ domain_vars.domain_name }}-{{ cluster_list.cluster.name | e}}-cluster'
+        },
+        {% endfor %}
+    {% endfor %}
+    }
+
+    def __init__(self):
+        self.addTemplate = domain.wlst.get('addTemplate')
+        self.readTemplate = domain.wlst.get('readTemplate')
+        self.setOption = domain.wlst.get('setOption')
+        self._set = domain.wlst.get('set')
+        self.cd = domain.wlst.get('cd')
+        self._create = domain.wlst.get('create')
+        self.readDomain = domain.wlst.get('readDomain')
+        self.writeDomain = domain.wlst.get('writeDomain')
+        self.updateDomain = domain.wlst.get('updateDomain')
+        self.closeDomain = domain.wlst.get('closeDomain')
+
+        # soa suite specific
+        self.getDatabaseDefaults = domain.wlst.get('getDatabaseDefaults')
+        self.setServerGroups = domain.wlst.get('setServerGroups')
+        self.create_logger()
+        return
+
+    def __config_server(self, server):
+        for param in self.managed_servers[server]:
+            self._set(param, self.managed_servers[server][param])
+
+    def create_managed_servers(self):
+        self.logger.info('Creating managed servers')
+        for server in self.managed_servers:
+            self.cd('/')
+            self._create(server, 'Server')
+            self.cd('/Servers/%s' % server)
+
+            # Configure the admin server
+            self.__config_server(server)
+
+        return
+
+    def create_logger(self):
+        self.logger = LogHelper('ManagedServer')
+
+def main():
+    managedServer = ManagedServer()
+    managedServer.create_managed_servers()
+
+if __name__ == 'main':
+    print 'Running as a standalone module is not supported. Please run from domain_create'
+    sys.exit(2)
+
+if __name__ == '__main__':
+    print 'Running as a Jython module is not supported. Please run from wlst command'
+    sys.exit(2)
