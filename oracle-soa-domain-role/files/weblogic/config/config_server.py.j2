@@ -1,0 +1,157 @@
+'''
+Created on Feb. 27, 2020
+
+@author: Reza Fikree
+'''
+import com.oracle.cie.domain.script.jython.WLSTException as WLSTException
+import config
+from config import config_mbean
+from config.log_helper import LogHelper
+
+class ServerConfig:
+
+    servers = config.domain_data.domain['Servers']
+
+    connection = {
+        'username' : '{{ domain_vars.security.name }}',
+        'password' : '{{ domain_vars.security.password }}',
+        'url' : 't3://{{ domain_vars.admin_server.listen_address }}:{{ domain_vars.admin_server.listen_port }}'
+    }
+
+    def __init__(self):
+        self.connect = config.wlst.get('connect')
+        self.is_connected = config.wlst.get('isConnected')
+        self.create_logger()
+        self.root = None
+        self.edit = None
+        self.start_edit = None
+        self.cancel_edit = None
+        self.save_changes = None
+        self.get_mbean = None
+        self.validate = None
+        self.activate = None
+
+        if (self.is_connected() == 'false'):
+            self.__connect()
+
+    def __connect(self):
+        try:
+            self.connect(**self.connection)
+            config.wlst = globals()
+        except WLSTException, e:
+            message = 'Failed to connect - %s' % e.getMessage()
+            raise WLSTException(message)
+
+    def config_log(self, server_mbean):
+        server_log = self.servers.get(server_mbean.name).get('Log')
+
+        if not server_log:
+            self.logger.info('Log data not found for server %s ... Log will not be configured' % server_mbean.name)
+        else:
+            config_mbean(server_mbean.getLog(), server_log)
+
+        #Validate the changes
+        self.validate()
+
+    def config_webserver(self, server_mbean):
+        webserver = self.servers.get(server_mbean.name).get('WebServer')
+
+        if not webserver:
+            self.logger.info('WebServer data not found for server %s ... Log will not be configured' % server_mbean.name)
+        else:
+            config_mbean(server_mbean.getWebServer(), webserver)
+
+        #Validate the changes
+        self.validate()
+
+    def config_webserver_log(self, server_mbean):
+        webserver_log = self.servers.get(server_mbean.name).get('WebServer').get('WebServerLog')
+
+        if not webserver_log:
+            self.logger.info('WebServer Log data not found for server %s ... Log will not be configured' % server_mbean.name)
+        else:
+            webserver = server_mbean.getWebServer()
+            config_mbean(webserver.getWebServerLog(), webserver_log)
+
+        #Validate the changes
+        self.validate()
+
+    def config_ssl(self, server_mbean):
+        ssl = self.servers.get(server_mbean.name).get('SSL')
+
+        if not ssl:
+            self.logger.info('SSL data not found for server %s ... SSL will not be configured'  % server_mbean.name)
+        else:
+            config_mbean(server_mbean.getSSL(), ssl)
+
+        #Validate the changes
+        self.validate()
+
+    def config_server_start(self, server_mbean):
+        server_start = self.servers.get(server_mbean.name).get('ServerStart')
+
+        if not server_start:
+            self.logger.info('ServerStart data not found for server %s ... ServerStart will not be configured'  % server_mbean.name)
+        else:
+            config_mbean(server_mbean.getServerStart(), server_start)
+
+        #Validate the changes
+        self.validate()
+
+    def config_network_access_points(self, server_mbean):
+        access_points = self.servers.get(server_mbean.name).get('NetworkAccessPoints')
+        for access_point in access_points:
+            result = server_mbean.lookupNetworkAccessPoint(access_point)
+            # if the network access point does not exist, create it
+            if not result:
+                access_point_mbean = server_mbean.createNetworkAccessPoint(access_point)
+            # configure the network access point
+            config_mbean( access_point_mbean, access_points[access_point])
+
+        #Validate the changes
+        self.validate()
+
+    def create_logger(self):
+        self.logger = LogHelper('domain-config')
+
+    def config(self):
+        self.edit = config.wlst.get('edit')
+        self.start_edit = config.wlst.get('startEdit')
+        self.get_mbean = config.wlst.get('getMBean')
+        self.save_changes = config.wlst.get('save')
+        self.validate = config.wlst.get('validate')
+        self.activate = config.wlst.get('activate')
+
+        self.edit()
+        self.start_edit()
+
+        self.root = self.get_mbean('/')
+
+        #Loop over every server defined in the domain_data.py file
+        #Use lookup to get the server mbean and then configure the server itself
+        for server in self.servers:
+            server_mbean = self.root.lookupServer(server)
+            config_mbean(server_mbean, self.servers[server])
+            # Configure the server start
+            self.config_server_start(server_mbean)
+            # Configure the server SSL
+            self.config_ssl(server_mbean)
+            # Configure the server logs
+            self.config_log(server_mbean)
+            # Configure the WebServer
+            self.config_webserver(server_mbean)
+            # Configure the WebServerLog
+            self.config_webserver_log(server_mbean)
+            # Config network access points
+            self.config_network_access_points(server_mbean)
+
+        self.save_changes()
+        self.activate()
+
+def main():
+    server_config = ServerConfig()
+    server_config.config()
+
+if __name__ == 'main':
+    config.wlst = globals()
+    main()

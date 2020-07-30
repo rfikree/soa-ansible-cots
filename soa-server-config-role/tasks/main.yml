@@ -1,0 +1,10 @@
+---
+# main task for server-config
+- name: configure the disks and disk mounts
+  import_tasks: disk-config.yml
+
+- name: update hosts file
+  import_tasks: host-file-config.yml
+
+- name: create group and users
+  import_tasks: user-config.yml

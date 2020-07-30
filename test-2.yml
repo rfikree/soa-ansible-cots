@@ -1,0 +1,23 @@
+---
+# Test group_vars
+- hosts: "{{ stack }}"
+  gather_facts: no
+  become: true
+
+  vars:
+    template_source: files/weblogic
+    host_vars: "{{ hostvars[inventory_hostname] }}"
+    domain_vars: "{{ host_vars['%s' | format(domain_name)] }}"
+    common_vars: "{{ host_vars['%s_common' | format(domain_name)] }}"
+    server_vars: "{{ host_vars['%s_servers' | format(domain_name)] }}"
+
+  tasks:
+    - name: set facts
+      set_fact:
+        domain_dir: "{{ common_vars.domain_dir }}"
+        server_common: "{{server_vars.server_common}}"
+
+    # Can assign value of template to a variable or fact
+    - name: Test error return code
+      shell: /home/ansible/test.sh
+      delegate_to: localhost

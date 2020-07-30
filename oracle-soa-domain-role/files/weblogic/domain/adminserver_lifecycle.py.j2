@@ -1,0 +1,135 @@
+'''
+Created on Feb. 24, 2020
+
+@author: Reza Fikree
+'''
+import sys
+import domain
+from domain import LogHelper
+import com.oracle.cie.domain.script.jython.WLSTException as WLSTException
+
+class AdminServerLifeCycle:
+    domain = {
+        'name' : '{{ domain_vars.domain_name }}',
+        'domain_home' : '{{ common_vars.domain_dir }}/{{ domain_vars.domain_name }}'
+    }
+
+    {% set admin_server_machine = domain_vars.admin_server.machine %}
+    {% for machine in domain_vars.machines if machine.name == admin_server_machine %}
+    node_manager = {
+        'listen_address' : "{{ machine.listen_address }}"
+        'listen_port' : "{{ machine.listen_port }}"
+        'user_name' : '{{ domain_vars.security.name }}',
+        'password' : '{{ domain_vars.security.password }}'
+    }
+    {% endfor %}
+
+    admin_server = {
+        'ListenAddress' : '{{ domain_vars.admin_server.listen_address }}',
+        'ListenPort' : {{ domain_vars.admin_server.listen_port }},
+        'Machine' : '{{ domain_vars.domain_name }}-{{ domain_vars.admin_server.machine }}'
+    }
+
+    def __init__(self):
+        self.nmConnect = domain.wlst.get('nmConnect')
+        self.nmStart = domain.wlst.get('nmStart')
+        self.nmKill = domain.wlst.get('nmKill')
+        self.nmRestart = domain.wlst.get('nmRestart')
+        self.nm = domain.wlst.get('nm')
+        self.create_logger()
+
+    #------------------------------------------------------
+    # Start/Stop Admin Server
+    #------------------------------------------------------
+    def __start_admin_server(self):
+        if not self.nm():
+            self.__node_manager_connect()
+
+        self.logger.info('Starting node manager with properties: %s' % nm_properties)
+        try:
+            self.nmStart()
+        except WLSTException, e:
+            message = 'Failed to start admin server - %s' % e.getMessage()
+            raise WLSTException(message)
+
+    def __stop_admin_server(self):
+        if not self.nm():
+            self.__node_manager_connect()
+
+        try:
+            self.nmKill()
+        except WLSTException, e:
+            message = 'Failed to connect to nodemanager - %s' % e.getMessage()
+            raise WLSTException(message)
+
+    def __restart_admin_server(self):
+        if not self.nm():
+            self.__node_manager_connect()
+
+        try:
+            self.nmRestart({{ domain_vars.timeout | default(60000) }})
+        except WLSTException, e:
+            message = 'Failed to connect to nodemanager - %s' % e.getMessage()
+            raise WLSTException(message)
+
+    def __node_manager_connect(self):
+        nmconnect_properties = {
+            'username' : self.node_manager['user_name'],
+            'password' : self.node_manager['password'],
+            'host' : self.node_manager['listen_address'],
+            'port' : self.node_manager['listen_port'],
+            'domainName' : self.domain['name'],
+            'domainDir' : self.domain['domain_home'],
+            'nmType' : 'Plain'
+        }
+
+        self.logger.info('Connecting to node manager....')
+        try:
+            self.nmConnect(**nmconnect_properties)
+        except WLSTException, e:
+            message = 'Failed to connect to nodemanager - %s' % e.getMessage()
+            raise WLSTException(message)
+
+    def create_logger(self):
+        self.logger = LogHelper('FmwDomain')
+
+
+    def usage(self):
+        print '''\nAdmin Server Life Cycle
+Usage: Pass either --start, --stop, --connect to manage the Node Manager
+
+Options:
+ -h, --help               Print this message
+ -s, --start              Starts the admin server
+ -r, --restart            Restarts the admin server
+ -t, --stop               Stops the admin server
+'''
+    def main(self, argv):
+        try:
+            opts, args = getopt.getopt(argv, 'hsrt',  # @UnusedVariable
+                                       ['help', 'start', 'stop', 'restart'])
+        except getopt.GetoptError, err:
+            print 'Exception ... %s' % str(err)
+            self.usage()
+            exit(2)
+
+        for opt, arg in opts:  # @UnusedVariable
+            if opt in ('-h', '--help'):
+                self.usage()
+                exit(0)
+            if opt in ('-s', '--start'):
+                self.__start_admin_server()
+            if opt in ('-r', '--restart'):
+                self.__restart_admin_server()
+            if opt in ('-t', '--stop'):
+                self.__stop_admin_server()
+
+if __name__ == 'main':
+    domain.wlst = globals()
+    admin_server = AdminServerLifeCycle()
+    admin_server.main(sys.argv[1:])
+
+
+if __name__ == '__main__':
+    print 'Running as a Jython module is not supported. Please run from wlst command'
+    sys.exit(2)

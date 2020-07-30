@@ -1,0 +1,51 @@
+---
+# install java and update alternatives
+- name: install tar and gzip
+  dnf:
+    name:
+      - gzip
+      - tar
+    state: latest
+
+- name: create jdk directory if it does not exist
+  file:
+    path: "{{ jdk_dest }}"
+    state: directory
+
+- name: Unarchive java to remote location
+  unarchive:
+    src: "{{ download_dir }}/{{ jdk_archive }}"
+    dest: "{{ jdk_dest }}"
+    owner: "{{ jdk_owner }}"
+    list_files: true
+  register: jdk_archive_contents
+
+- name: register the variable java_home
+  set_fact:
+    java_home: "{{ jdk_dest }}/{{ jdk_archive_contents.files[0] }}"
+
+- name: create generic java directory
+  file:
+    path: /usr/java
+    state: directory
+
+- name: Create a symbolic link
+  become: yes
+  file:
+    src: "{{ java_home }}"
+    dest: /usr/java/"{{ item }}"
+    state: link
+  loop:
+    - default
+    - latest
+
+- name: copy template file to java_home
+  template:
+    src: java-alternatives.sh.j2
+    dest: "{{ java_home }}/java-alternatives.sh"
+    mode: u=rwx
+
+- name: run the script java-alternatives
+  become: yes
+  shell:
+    cmd: "{{ java_home }}/java-alternatives.sh"

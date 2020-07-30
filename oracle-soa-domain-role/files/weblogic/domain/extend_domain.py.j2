@@ -1,0 +1,207 @@
+'''
+Created on Feb. 3, 2020
+
+@author: Reza Fikree
+'''
+from domain import LogHelper
+from domain import validate_directory
+from domain import bam_jms_fix
+import domain
+import sys
+
+class DomainExtend:
+    xa_config = False
+    jdb_config = False
+
+    server_list = []
+    template_servers = ['soa_server1', 'ess_server1', 'bam_server1']
+
+    templates = {
+        'extension_templates' : [
+        {% for cluster_list in domain_vars.clusters %}
+            {% for template in cluster_list.cluster.templates %}
+            '{{ template }}',
+            {% endfor %}
+        {% endfor %}
+        ]
+    }
+
+    clusters = {
+    {% for cluster_list in domain_vars.clusters %}
+        '{{ domain_vars.domain_name }}-{{ cluster_list.cluster.name | e}}-cluster' : {
+            'extension_templates' : {{ cluster_list.cluster.templates }},
+            'target_server_groups' : {{ cluster_list.cluster.server_groups }},
+            'managed_servers' : [
+            {% for managed_server in cluster_list.cluster.managed_servers %}
+                '{{ managed_server.name | e}}',
+            {% endfor %}
+            ]
+        },
+    {% endfor %}
+    }
+
+    domain = {
+        'name' : '{{ domain_vars.domain_name }}',
+        'oracle_home' : '{{ fmw_home }}',
+        'java_home' : '{{ java_home }}',
+        'domain_dir' : '{{ common_vars.domain_dir }}'
+    }
+
+    database = {
+        'db_connect_string' : '{{ domain_vars.database.db_connect_string }}',
+        'db_password' : '{{ domain_vars.database.db_password }}',
+        'db_prefix' : '{{ domain_vars.database.db_prefix }}'
+    }
+
+    def __init__(self):
+        self.oracle_home = validate_directory(self.domain.get('oracle_home'))
+        self.java_home = validate_directory(self.domain.get('java_home'))
+        self.domain_parent_dir = validate_directory(self.domain.get('domain_dir'))
+        self.domain_home = '%s/%s' % (self.domain_parent_dir, self.domain.get('name'))
+
+        self.addTemplate = domain.wlst.get('addTemplate')
+        self.readTemplate = domain.wlst.get('readTemplate')
+        self.setOption = domain.wlst.get('setOption')
+        self._set = domain.wlst.get('set')
+        self.cd = domain.wlst.get('cd')
+        self._create = domain.wlst.get('create')
+        self._delete = domain.wlst.get('delete')
+        self.readDomain = domain.wlst.get('readDomain')
+        self.writeDomain = domain.wlst.get('writeDomain')
+        self.updateDomain = domain.wlst.get('updateDomain')
+        self.closeDomain = domain.wlst.get('closeDomain')
+
+        # soa suite specific
+        self.getDatabaseDefaults = domain.wlst.get('getDatabaseDefaults')
+        self.setServerGroups = domain.wlst.get('setServerGroups')
+        self.create_logger()
+        return
+
+    def __server_list(self):
+        root = self.cd('/')
+        servers = root.getServers()
+        for server in servers:
+            self.server_list.append(server.getName())
+
+    def __add_template(self, template_list):
+        self.logger.info('Extending with templates %s' % template_list)
+        for extension_template in template_list:
+            self.logger.info('Applying templates...:%s/%s' % (self.oracle_home, extension_template))
+            self.addTemplate('%s/%s' % (self.oracle_home, extension_template))
+        return
+
+    def __target_coherence_cluster(self, cluster):
+        self.logger.info('Set CoherenceClusterSystemResource to defaultCoherenceCluster for cluster:%s' % cluster)
+        self.cd('/Cluster/%s' % cluster)
+        self._set('CoherenceClusterSystemResource', 'defaultCoherenceCluster')
+
+    def __config_jdbc_templates(self):
+        if (self.jdb_config):
+            self.logger.info('JDBC template configured...nothing to do')
+            return
+
+        self.logger.info('Configuring the Service Table DataSource...')
+        fmw_db = self.database.get('db_connect_string')
+        self.cd('/JDBCSystemResource/LocalSvcTblDataSource/JdbcResource/LocalSvcTblDataSource/JDBCDriverParams/NO_NAME_0')
+        self._set('DriverName', 'oracle.jdbc.OracleDriver')
+        self._set('URL', fmw_db)
+        self._set('PasswordEncrypted', self.database.get('db_password'))
+
+        stub_user = '%s_STB' % self.database.get('db_prefix')
+        self.cd('Properties/NO_NAME_0/Property/user')
+        self._set('Value', stub_user)
+
+        self.logger.info('Getting Database Defaults...')
+        self.getDatabaseDefaults()
+        self.jdb_config = True
+        return
+
+    def __config_xa_dataSources(self):
+        if (self.xa_config):
+            self.logger.info('XA Datasources configured...nothing to do')
+            return
+
+        self.logger.info('Configuring XA datasources')
+        datasources = ['SOADataSource', 'EDNDataSource', 'OraSDPMDataSource']
+        for datasource in datasources:
+            self.logger.info('Setting XA driver for datasource:%s' % datasource)
+            self.cd('/JDBCSystemResources/%s/JdbcResource/%s/JDBCDriverParams/NO_NAME_0'
+                    % (datasource, datasource))
+            self._set('DriverName', 'oracle.jdbc.xa.client.OracleXADataSource')
+        self.xa_config = True
+        return
+
+    def __set_server_groups(self, target_server_groups, servers):
+        self.logger.info('Setting server groups')
+        for server in servers:
+            self.setServerGroups(server, target_server_groups)
+
+    def extend_domain(self):
+        self.logger.info('Extending domain at:%s' % self.domain_home)
+        self.readDomain(self.domain_home)
+        self.setOption('AppDir', '%s/applications' % self.domain_parent_dir)
+
+        self.logger.info('Extending domain ...')
+
+        # Apply templates
+        extension_templates = self.templates['extension_templates']
+        self.__add_template(extension_templates)
+
+        # After applying the templates get a list of the servers
+        self.__server_list()
+
+        for cluster in self.clusters:
+            _cluster = self.clusters[cluster]
+
+            # Delete server added by template
+            for server in self.template_servers:
+                if (server in self.server_list):
+                    server_idx = self.server_list.index(server)
+                    self.logger.info('Deleting %s' % server)
+                    self.cd('/')
+                    self._delete(server,'Server')
+                    # Remove the server from the list so it is not tried again
+                    self.server_list.pop(server_idx)
+
+            # Configure JDBC Datasource for STB
+            self.__config_jdbc_templates()
+
+            # Configure XA Datasource
+            self.__config_xa_dataSources()
+
+            # Target server groups
+            target_server_groups = _cluster['target_server_groups']
+            managed_servers = _cluster['managed_servers']
+            self.__set_server_groups(target_server_groups, managed_servers)
+
+            # Target Coherence cluster to default
+            self.__target_coherence_cluster(cluster)
+
+        cluster_target_list = ','.join(self.clusters.keys())
+
+        self.logger.info ('Set WLS clusters as target of defaultCoherenceCluster:[%s]:' % cluster_target_list)
+        self.cd('/CoherenceClusterSystemResource/defaultCoherenceCluster')
+        self._set('Target', cluster_target_list)
+
+        self.logger.info('Preparing to update domain...')
+        self.updateDomain()
+        self.logger.info('Domain updated successfully')
+        self.closeDomain()
+        return
+
+    def create_logger(self):
+        self.logger = LogHelper('DomainExtend')
+
+def main():
+    domain_extend = DomainExtend()
+    domain_extend.extend_domain()
+    # Fixup bam JMS - otherwise domain will not start
+    bam_jms_fix.main()
+
+if __name__ == 'main':
+    domain.wlst = globals()
+    main()
+
+if __name__ == '__main__':
+    print 'Running as a Jython module is not supported. Please run from wlst command'
+    sys.exit(2)

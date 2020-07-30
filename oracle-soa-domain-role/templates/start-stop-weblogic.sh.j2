@@ -1,0 +1,47 @@
+#!/bin/sh
+set -eo pipefail
+#WARNING: This file is created by maf-devel domain creation script.
+#Any changes to this script may be lost when the script is run again.
+
+if [[ $EUID == 0 ]]; then
+  echo "Script should not be run as root!"
+  exit 2
+fi
+
+CURR_DIR=$(dirname "${0}")
+DOMAIN_DIR=$(cd "${CURR_DIR}"; pwd)
+LOG_DIR="{{ a5d50d1_common.log_root_dir }}/servers"
+export DERBY_FLAG=false
+export debugFlag=false
+export WLS_REDIRECT_LOG="${LOG_DIR}/AdminServer/AdminServer.out"
+
+REDIRECT_DIR=$(dirname "${WLS_REDIRECT_LOG}")
+
+if [[ ! -d "${REDIRECT_DIR}" ]]; then
+  mkdir -p "${REDIRECT_DIR}"
+fi
+
+while getopts "sT" opt; do
+  case $opt in
+    s)
+      ACTION=start
+      ;;
+    T)
+      ACTION=stop
+      ;;
+    ?)
+      echo "Invalid option: $opt" >&2
+      exit 1
+      ;;
+  esac
+done
+
+if [[ "${ACTION}" == "start"  ]]; then
+  "${DOMAIN_DIR}"/startWebLogic.sh
+  ADMIN_PID=$!
+  echo "${ADMIN_PID}" > "${DOMAIN_DIR}/adminserver.process.pid"
+fi
+
+if [[ "${ACTION}"=="stop"  ]]; then
+  "${DOMAIN_DIR}"/bin/stopWebLogic.sh
+fi

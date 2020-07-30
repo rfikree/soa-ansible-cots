@@ -1,0 +1,27 @@
+---
+# tasks to control the admin server
+- name: Disable SELinux
+  selinux:
+    state: disabled
+  tags:
+    - linux
+
+- name: Reload systemd daemons
+  systemd:
+    daemon_reload: yes
+  tags:
+    - linux
+
+- name: Start service nodemanager service, if not started
+  service:
+    name: "nodemanager-{{ domain_name }}.service"
+    enabled: yes
+    state: reloaded
+  when: (is_admin_server is defined and is_admin_server )
+
+- name: Start admin server service, if not started
+  service:
+    name: "adminserver-{{ domain_name }}.service"
+    enabled: yes
+    state: reloaded
+  when: (is_admin_server is defined and is_admin_server )

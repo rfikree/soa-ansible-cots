@@ -1,0 +1,51 @@
+---
+# task to install fmw-infrastructure
+- name: install/update unzip if it is not already there
+  dnf:
+    name:
+      - unzip
+    state: latest
+
+- name: create downloads directory
+  file:
+    path: "{{ oracle_home }}/downloads"
+    state: directory
+    owner: "{{ fmw_owner }}"
+    group: "{{ fmw_group }}"
+
+- name: copy fmw install archive (zip) file to remote and unzip
+  unarchive:
+    src: "{{ download_dir}}/{{ fmw_install_archive }}"
+    dest: "{{ oracle_home }}/downloads"
+    owner: "{{ fmw_owner }}"
+    group: "{{ fmw_group }}"
+    mode: u=rw,g=r,o-rw
+    list_files: true
+  register: fmw_archive_contents
+
+- name: get the name of fmw jar
+  set_fact:
+    fmw_jar_file: "{{ fmw_archive_contents.files | select('match', '^.+\\.jar') | list | first }}"
+
+- name: copy the templates
+  template:
+    src: "{{ item }}"
+    dest: "{{ oracle_home }}/downloads/{{ item | basename | regex_replace('\\.j2$') }}"
+    owner: "{{ fmw_owner }}"
+    group: "{{ fmw_group }}"
+  loop:
+    - fmw_infra_response.j2
+    - oraInst.loc.j2
+    - fmw-install.sh.j2
+
+- name: change the permission of the shell script - make it executable
+  file:
+    path: "{{ oracle_home }}/downloads/fmw-install.sh"
+    mode: u=rwx,g=r,o-rwx
+
+- name: install oracle soa fmw infrastructure
+  become: yes
+  become_user: mw
+  shell:
+    cmd: "{{ oracle_home }}/downloads/fmw-install.sh {{ fmw_jar_file }} {{ oracle_home }}/downloads/fmw_infra_response {{ oracle_home }}/downloads/oraInst.loc"
+    chdir: "{{ oracle_home }}/downloads"

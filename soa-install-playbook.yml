@@ -1,0 +1,12 @@
+---
+- hosts: all
+  gather_facts: yes
+  become: true
+  vars:
+    java_home: /u01/oracle/products/jdk/jdk1.8.0_241
+    soa_install_archive: V886440-01.zip
+    soa_jar_file: fmw_12.2.1.3.0_soa.jar
+
+  roles:
+    - soa-server-config-role
+    - oracle-soa-install-role

@@ -1,0 +1,85 @@
+'''
+Created on Feb. 3, 2020
+
+@author: Reza Fikree
+'''
+from domain import LogHelper
+import domain
+import sys
+
+class Cluster:
+
+    machines = {
+    {% for machine in domain_vars.machines %}
+        '{{ machine.name }}' : {
+            'NMType': '{{ machine.nm_type | e }}',
+            'ListenAddress': '{{ machine.listen_address| e }}',
+            'ListenPort': {{ machine.listen_port }}
+        },
+    {% endfor %}
+    }
+
+    clusters = {
+    {% for cluster_list in domain_vars.clusters %}
+        '{{ domain_vars.domain_name }}-{{ cluster_list.cluster.name | e}}-cluster' : {},
+    {% endfor %}
+    }
+
+    def __init__(self):
+        self.addTemplate = domain.wlst.get('addTemplate')
+        self.readTemplate = domain.wlst.get('readTemplate')
+        self.setOption = domain.wlst.get('setOption')
+        self._set = domain.wlst.get('set')
+        self.cd = domain.wlst.get('cd')
+        self._create = domain.wlst.get('create')
+        self.readDomain = domain.wlst.get('readDomain')
+        self.writeDomain = domain.wlst.get('writeDomain')
+        self.updateDomain = domain.wlst.get('updateDomain')
+        self.closeDomain = domain.wlst.get('closeDomain')
+
+        # soa suite specific
+        self.getDatabaseDefaults = domain.wlst.get('getDatabaseDefaults')
+        self.setServerGroups = domain.wlst.get('setServerGroups')
+        self.create_logger()
+        return
+
+    def create_clusters(self):
+        self.logger.info('Creating clusters')
+        for cluster in self.clusters:
+            self.cd('/')
+            self._create(cluster, 'Cluster')
+            self.cd('Cluster/' + cluster)
+            # Set the parameters for the cluster
+            for param in  self.clusters[cluster]:
+                self._set(param, self.clusters[cluster][param])
+
+            self.logger.info('Created cluster:%s' % cluster)
+
+    def create_node_managers(self):
+        self.logger.info('Creating node managers')
+        for machine in self.machines:
+            self.cd('/')
+            self._create(machine, 'Machine')
+            self.cd('Machine/%s' % machine)
+            self._create(machine, 'NodeManager')
+            self.cd('NodeManager/%s' % machine)
+            for param in self.machines[machine]:
+                self._set(param, self.machines[machine][param])
+            self.logger.info('Created NodeManager:%s' % machine)
+
+    def create_logger(self):
+        self.logger = LogHelper('Cluster')
+
+def main():
+    cluster = Cluster()
+    cluster.create_clusters()
+    cluster.create_node_managers()
+
+if __name__ == 'main':
+    print 'This is not a stand alone module and cannot be called independently at this time'
+    sys.exit(2)
+
+
+if __name__ == '__main__':
+    print 'This is not a stand alone module and cannot be called independently at this time'
+    sys.exit(2)

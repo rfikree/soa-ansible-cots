@@ -1,0 +1,18 @@
+#!/bin/bash
+export ORACLE_HOME={{ fmw_home }}
+
+{{ java_home }}/bin/java -jar "${1}" \
+  -silent \
+  -responseFile "${2}" \
+  -invPtrLoc "${3}" \
+  -jreLoc {{ java_home }} \
+  -ignoreSysPrereqs \
+  -force \
+  -novalidation \
+  ORACLE_HOME={{ fmw_home }}
+
+#--------------------------------------------
+# Change permission for {{ fmw_group }}
+#--------------------------------------------
+cd "${ORACLE_HOME}"
+find . -group {{ fmw_group }} -not -perm -g=r -exec chmod g+r {} +

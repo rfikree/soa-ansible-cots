@@ -1,0 +1,111 @@
+'''
+Created on Feb. 27, 2020
+
+@author: Reza Fikree
+'''
+import com.oracle.cie.domain.script.jython.WLSTException as WLSTException
+import config
+from config import config_mbean, config_server
+from config.log_helper import LogHelper
+
+class DomainConfig:
+
+    domain_data = config.domain_data.domain
+
+    connection = {
+        'username' : '{{ domain_vars.security.name }}',
+        'password' : '{{ domain_vars.security.password }}',
+        'url' : 't3://{{ domain_vars.admin_server.listen_address }}:{{ domain_vars.admin_server.listen_port }}'
+    }
+
+    def __init__(self):
+        self.connect = config.wlst.get('connect')
+        self.is_connected = config.wlst.get('isConnected')
+        self.create_logger()
+        self.root = None
+        self.edit = None
+        self.start_edit = None
+        self.cancel_edit = None
+        self.save_changes = None
+        self.get_mbean = None
+        self.activate = None
+        self.validate = None
+
+        if (self.is_connected() == 'false'):
+            self.__connect()
+
+    def __connect(self):
+        try:
+            self.connect(**self.connection)
+            config.wlst = globals()
+        except WLSTException, e:
+            message = 'Failed to connect - %s' % e.getMessage()
+            raise WLSTException(message)
+
+    def config_jta(self):
+        jta = self.domain_data.get('JTA')
+
+        if not jta:
+            self.logger.info('JTA data not found... JTA will not be configured')
+            return
+        else:
+            config_mbean(self.root.getJTA(), jta)
+        #Validate the changes
+        self.validate()
+
+    def config_log(self):
+        domain_log = self.domain_data.get('Log')
+
+        if not domain_log:
+            self.logger.info('Log data not found ... Log will not be configured')
+        else:
+            config_mbean(self.root.getLog(), domain_log)
+
+        #Validate the changes
+        self.validate()
+
+    def config_webapp_container(self):
+        webapp_container = self.domain_data.get('WebAppContainer')
+
+        if not webapp_container:
+            self.logger.info('WebAppContainer data not found ... WebAppContainer will not be configured')
+        else:
+            config_mbean(self.root.getWebAppContainer(), webapp_container)
+
+        #Validate the changes
+        self.validate()
+
+    def config_server(self):
+        config_server.main()
+
+    def create_logger(self):
+        self.logger = LogHelper('domain-config')
+
+    def config_domain(self):
+        self.edit = config.wlst.get('edit')
+        self.start_edit = config.wlst.get('startEdit')
+        self.get_mbean = config.wlst.get('getMBean')
+        self.save_changes = config.wlst.get('save')
+        self.activate = config.wlst.get('activate')
+        self.validate = config.wlst.get('validate')
+
+        # Start configuring the domain
+        self.edit()
+        self.start_edit()
+        self.root = self.get_mbean('/')
+        config_mbean(self.root, self.domain_data)
+
+        self.config_jta()
+        self.config_log()
+        self.config_webapp_container()
+        self.save_changes()
+        self.activate()
+
+def main():
+    domain_config = DomainConfig()
+    domain_config.config_domain()
+
+
+if __name__ == 'main':
+    config.wlst = globals()
+    main()

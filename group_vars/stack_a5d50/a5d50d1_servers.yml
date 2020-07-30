@@ -1,0 +1,152 @@
+---
+# Group vars that will be used to configure servers
+a5d50d1_servers:
+  server_common:
+    keystore:
+      key_stores: "{{ a5d50d1_common.key_stores }}"
+      custom_identity_key_store_file_name: "{{ a5d50d1_common.ssl_keystore_dir }}/{{ a5d50d1_common.indentity_store }}"
+      custom_trust_key_store_file_name: "{{ a5d50d1_common.ssl_keystore_dir }}/{{ a5d50d1_common.indentity_store }}"
+      key_store_type: "{{ a5d50d1_common.ssl_key_type }}"
+      ssl_key_pass_phrase: "{{ a5d50d1_common.ssl_key_pass_phrase }}"
+    log:
+      date_format_pattern: "{{ a5d50d1_common.date_format }}"
+      file_count: "{{ a5d50d1_common.log_file_count }}"
+      redirect_stderr: yes
+      redirect_stdout: yes
+      rotation_time: "00:00"
+      rotation_type: byTime
+      buffer_size: "{{ a5d50d1_common.log_buffer_size }}"
+    ssl:
+      enabled: yes
+      jsse_enabled: yes
+      server_private_key_alias: "{{ a5d50d1_common.server_private_key_alias }}"
+      server_private_key_pass_phrase: "{{ a5d50d1_common.ssl_key_pass_phrase }}"
+    web_server:
+      web_server_log:
+        date_format_pattern: "{{ a5d50d1_common.date_format }}"
+        log_file_format: extended
+        elf_fields: "{{ a5d50d1_common.access_log_format }}"
+        file_count: "{{ a5d50d1_common.log_file_count }}"
+        rotation_type: byTime
+        buffer_size: "{{ a5d50d1_common.log_buffer_size }}"
+
+  servers:
+    - AdminServer:
+        ssl:
+          listen_port: 8002
+        server_start:
+          arguments:
+            - "-Dweblogic.StdoutDebugEnabled=true"
+            - "-Dweblogic.Stdout={{ domain_dir }}/{{ domain_name }}/servers/AdminServer.out"
+            - "{{ a5d50d1_common.utf_arg }}"
+        network_access_points:
+          Mgnt-Intf-Http-Channel:
+            listen_address: "192.168.99.90"
+            listen_port: 50100
+            protocol: http
+          Mgnt-Intf-Https-Channel:
+            listen_address: "192.168.99.90"
+            listen_port: 50101
+            protocol: https
+    - soa-ms-1:
+        ssl:
+          listen_port: 8002
+        server_start:
+          arguments:
+            - "-Dweblogic.StdoutDebugEnabled=true"
+            - "-Dweblogic.Stdout={{ domain_dir }}/{{ domain_name }}/servers/soa-ms-1.out"
+            - "{{ a5d50d1_common.utf_arg }}"
+        network_access_points:
+          Mgnt-Intf-Http-Channel:
+            listen_address: "192.168.99.41"
+            listen_port: 51100
+            protocol: http
+          Mgnt-Intf-Https-Channel:
+            listen_address: "192.168.99.41"
+            listen_port: 51101
+            protocol: https
+    - soa-ms-2:
+        ssl:
+          listen_port: 8002
+        server_start:
+          arguments:
+            - "-Dweblogic.StdoutDebugEnabled=true"
+            - "-Dweblogic.Stdout={{ domain_dir }}/{{ domain_name }}/servers/soa-ms-2.out"
+            - "{{ a5d50d1_common.utf_arg }}"
+        network_access_points:
+          Mgnt-Intf-Http-Channel:
+            listen_address: "192.168.99.42"
+            listen_port: 51100
+            protocol: http
+          Mgnt-Intf-Https-Channel:
+            listen_address: "192.168.99.42"
+            listen_port: 51101
+            protocol: https
+    - ess-ms-1:
+        ssl:
+          listen_port: 8004
+        server_start:
+          arguments:
+            - "-Dweblogic.StdoutDebugEnabled=true"
+            - "-Dweblogic.Stdout={{ domain_dir }}/{{ domain_name }}/servers/ess-ms-1.out"
+            - "{{ a5d50d1_common.utf_arg }}"
+        network_access_points:
+          Mgnt-Intf-Http-Channel:
+            listen_address: "192.168.99.41"
+            listen_port: 51200
+            protocol: http
+          Mgnt-Intf-Https-Channel:
+            listen_address: "192.168.99.41"
+            listen_port: 51201
+            protocol: https
+    - ess-ms-2:
+        ssl:
+          listen_port: 8004
+        server_start:
+          arguments:
+            - "-Dweblogic.StdoutDebugEnabled=true"
+            - "-Dweblogic.Stdout={{ domain_dir }}/{{ domain_name }}/servers/ess-ms-2.out"
+            - "{{ a5d50d1_common.utf_arg }}"
+        network_access_points:
+          Mgnt-Intf-Http-Channel:
+            listen_address: "192.168.99.42"
+            listen_port: 51200
+            protocol: http
+          Mgnt-Intf-Https-Channel:
+            listen_address: "192.168.99.42"
+            listen_port: 51201
+            protocol: https
+    - bam-ms-1:
+        ssl:
+          listen_port: 8006
+        server_start:
+          arguments:
+            - "-Dweblogic.StdoutDebugEnabled=true"
+            - "-Dweblogic.Stdout={{ domain_dir }}/{{ domain_name }}/servers/bam-ms-1.out"
+            - "{{ a5d50d1_common.utf_arg }}"
+        network_access_points:
+          Mgnt-Intf-Http-Channel:
+            listen_address: "192.168.99.41"
+            listen_port: 51300
+            protocol: http
+          Mgnt-Intf-Https-Channel:
+            listen_address: "192.168.99.41"
+            listen_port: 51301
+            protocol: https
+    - bam-ms-2:
+        ssl:
+          listen_port: 8006
+        server_start:
+          arguments:
+            - "-Dweblogic.StdoutDebugEnabled=true"
+            - "-Dweblogic.Stdout={{ domain_dir }}/{{ domain_name }}/servers/bam-ms-1.out"
+            - "{{ a5d50d1_common.utf_arg }}"
+        network_access_points:
+          Mgnt-Intf-Http-Channel:
+            listen_address: "192.168.99.42"
+            listen_port: 51300
+            protocol: http
+          Mgnt-Intf-Https-Channel:
+            listen_address: "192.168.99.42"
+            listen_port: 51301
+            protocol: https

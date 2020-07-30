@@ -1,0 +1,31 @@
+#!/bin/bash
+set -euo pipefail
+#------------------------------------------------------------------------------
+# Domain create script
+#------------------------------------------------------------------------------
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+SCRIPTS_HOME="{{ common_vars.scripts_home }}/{{ domain_vars.domain_name }}"
+LOG_CONFIG_DIR="${SCRIPTS_HOME}/resources/logging"
+LOG_DIR="${HOME}/logs/{{ domain_vars.domain_name }}/${TIMESTAMP}"
+LOG_CONFIG="${LOG_CONFIG_DIR}/logging.properties"
+CONFIG_REDIRECT_LOG="${LOG_DIR}/config.out"
+
+#Create the log directory. Redirecting stdout will fail if the log directory
+#does not exist
+mkdir -p "${LOG_DIR}"
+
+PYTHON_CACHE_DIR="${HOME}/cache"
+ORACLE_HOME={{ fmw_home }}
+PYSCRIPT_PATH="${SCRIPTS_HOME}/weblogic"
+
+PYTHON_OPTIONS="-Dpython.cachedir=${PYTHON_CACHE_DIR} -Dpython.path=${PYSCRIPT_PATH}"
+
+# Uncomment the lineS below to get verbose logging
+{# PYTHON_DEBUG_OPTION=-Dpython.verbose=debug #}
+{# PYTHON_OPTIONS="${PYTHON_OPTIONS} ${PYTHON_DEBUG_OPTION}" #}
+
+#Set Java Options variable
+JAVA_OPTIONS="-Djava.util.logging.config.file=${LOG_CONFIG} -Dwlst.offline.log=${LOG_DIR}/wlst_offline.log -Dlog.dir=${LOG_DIR} -Djava.security.egd=file:/dev/./urandom -DLOG_HOME=${LOG_DIR}"
+
+export WLST_PROPERTIES="${JAVA_OPTIONS} ${PYTHON_OPTIONS}"
+{{ fmw_home }}/oracle_common/common/bin/wlst.sh ${SCRIPTS_HOME}/weblogic/domain/bam_jms_fix.py $* 2>&1 | tee "${CONFIG_REDIRECT_LOG}"

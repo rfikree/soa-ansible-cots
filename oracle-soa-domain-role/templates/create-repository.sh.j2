@@ -1,0 +1,34 @@
+#!/bin/bash
+set -euo pipefail
+#------------------------------------------------------------------------------
+# create soa repository
+#------------------------------------------------------------------------------
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+LOG_DIR="${HOME}/logs/{{ domain_vars.domain_name }}/${TIMESTAMP}"
+CONFIG_REDIRECT_LOG="${LOG_DIR}/config.out"
+{% set rcu = domain_vars.rcu_database %}
+#Create the log directory. Redirecting stdout will fail if the log directory
+#does not exist
+mkdir -p "${LOG_DIR}"
+
+/{{ fmw_home }}/oracle_common/bin/rcu \
+  -silent \
+  -createRepository \
+  -databaseType {{ rcu.database_type }} \
+  -connectString {{ rcu.connect_string }} \
+  -dbUser {{ rcu.db_user }} \
+  -dbRole {{ rcu.db_role }} \
+  -useSamePasswordForAllSchemaUsers true \
+  -selectDependentsForComponents true \
+  -variables SOA_PROFILE_TYPE=SMALL,HEALTHCARE_INTEGRATION=NO \
+  -schemaPrefix {{ rcu.schema_prefix }} \
+  -component STB \
+  -component ESS \
+  -component OPSS \
+  -component SOAINFRA \
+  -component UCSUMS \
+  -component IAU \
+  -component IAU_APPEND \
+  -component IAU_VIEWER \
+  -component MDS \
+  -component WLS \ -f < {{ rcu.password_file }}  2>&1 | tee "${CONFIG_REDIRECT_LOG}"

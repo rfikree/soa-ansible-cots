@@ -1,0 +1,16 @@
+[Unit]
+Description=Controls Admin Server Lifecycle
+After=network.target sshd.service nodemanager.service
+Requires=nodemanager-{{domain_name}}.service
+
+[Service]
+User={{ domain_owner }}
+Group={{ common_vars.fmw_group }}
+Type=simple
+WorkingDirectory={{ common_vars.domain_dir }}/{{ domain_vars.domain_name }}
+ExecStart={{ common_vars.domain_dir }}/{{ domain_vars.domain_name }}/start-stop-weblogic.sh -s >/dev/null 2>/dev/null {{ '&' }}
+ExecStop={{ common_vars.domain_dir }}/{{ domain_vars.domain_name }}/start-stop-weblogic.sh -T >/dev/null 2>/dev/null {{ '&' }}
+PIDFile={{ common_vars.domain_dir }}/{{ domain_vars.domain_name }}/adminserver.process.id
+
+[Install]
+WantedBy=multi-user.target

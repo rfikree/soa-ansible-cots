@@ -1,0 +1,21 @@
+a5d50d2:
+  domain_name: a5d50d2-soa
+  admin:
+    host: soa_server_1
+    listen_address: 192.168.99.40
+    listen_port: 8003
+  managed_servers:
+    - ms1:
+        host: soa_server_1
+        listen_address: 192.168.99.42
+        listen_port: 8003
+        node_manager:
+          listen_address: 192.168.99.90
+          listen_port: 8003
+    - ms2:
+        host: soa_server_2
+        listen_address: 192.168.99.41
+        listen_port: 8003
+        node_manager:
+          listen_address: 192.168.99.43
+          listen_port: 8003

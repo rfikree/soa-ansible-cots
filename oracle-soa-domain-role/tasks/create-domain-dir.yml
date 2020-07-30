@@ -1,0 +1,25 @@
+---
+# creates the root directory and the permsissions required
+- name: create root directory
+  file:
+    path: "{{ item }}"
+    state: directory
+    recurse: yes
+    group: "{{ common_vars.fmw_group }}"
+    mode: g+rw
+  loop:
+    - "{{ common_vars.applications_root_dir }}"
+    - "{{ common_vars.ssl_keystore_dir }}"
+
+- name: create root directory
+  file:
+    path: "{{ item }}"
+    state: directory
+    recurse: yes
+    owner: "{{ domain_owner }}"
+    group: "{{ common_vars.fmw_group }}"
+    mode: g+r
+  loop:
+    - "{{ common_vars.domain_dir }}"
+    - "{{ common_vars.scripts_home }}/{{ domain_name }}"
+    - "{{ common_vars.applications_dir }}/{{ domain_name }}"

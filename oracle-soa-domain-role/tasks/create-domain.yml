@@ -1,0 +1,33 @@
+---
+# task to create base weblogic domain
+- name: Create base domain with servers and clusters in offline mode
+  become: yes
+  become_user: "{{ domain_owner }}"
+  shell:
+    cmd: "{{ common_vars.scripts_home }}/{{ domain_vars.domain_name }}/bin/create-domain.sh"
+  when: (is_admin_server is defined and is_admin_server )
+
+- name: Custom script target directory must exist
+  become: yes
+  become_user: "{{ domain_owner }}"
+  file:
+    path: "{{ domain_dir }}"
+    state: directory
+
+- name: Copy customized start weblogic to domain root
+  become: yes
+  become_user: "{{ domain_owner }}"
+  template:
+    src: "{{ item }}"
+    dest: "{{ domain_dir }}/{{ item | basename | regex_replace('\\.j2$') }}"
+    mode: u=rwx,g=r,o-rwx
+  loop:
+    - start-stop-weblogic.sh.j2
+  when: (is_admin_server is defined and is_admin_server )
+
+- name: Configure admin server to be controlled by the node manager
+  become: yes
+  become_user: "{{ domain_owner }}"
+  shell:
+    cmd: "{{ common_vars.scripts_home }}/{{ domain_vars.domain_name }}/bin/admin-nodemanager.sh"
+  when: (is_admin_server is defined and is_admin_server )

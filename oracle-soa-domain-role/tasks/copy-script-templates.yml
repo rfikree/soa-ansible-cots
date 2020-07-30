@@ -1,0 +1,64 @@
+---
+# Copies all templates to target script folder
+- name: set the templates destination fact
+  set_fact:
+    domain_scripts_dir: "{{ common_vars.scripts_home }}/{{ domain_name }}"
+    template_destination: "{{ common_vars.scripts_home }}/{{ domain_name}}/weblogic"
+
+- name: Create target directories for  logging properties
+  become: yes
+  become_user: "{{ domain_owner }}"
+  file:
+    path: "{{ domain_scripts_dir }}/resources/logging"
+    state: directory
+
+- name: copy logging properties template to the resources directory
+  template:
+    src: logging.properties.j2
+    dest: "{{ domain_scripts_dir }}/resources/logging/logging.properties"
+
+- name: Create target directories for  template files
+  become: yes
+  become_user: "{{ domain_owner }}"
+  file:
+    path: "{{ template_destination }}/{{ item.path }}"
+    state: directory
+  with_filetree: "{{ template_source }}"
+  when: (item.state == "directory")
+
+- name: Copy all files including templates
+  become: yes
+  become_user: "{{ domain_owner }}"
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ template_destination }}/{{ item.path | regex_replace('\\.j2$') }}"
+    trim_blocks: yes
+    lstrip_blocks: yes
+    owner: "{{ domain_owner }}"
+    group: "{{ fmw_group }}"
+    mode: u=rw,g=r,o-rw
+  with_filetree: "{{ template_source }}"
+  when: (item.state == "file")
+
+- name: Create target bin directory
+  become: yes
+  become_user: "{{ domain_owner }}"
+  file:
+    path: "{{ domain_scripts_dir }}/bin"
+    state: directory
+
+- name: Copy domain create shell script to target
+  become: yes
+  become_user: "{{ domain_owner }}"
+  template:
+    src: "{{ item }}"
+    dest: "{{ domain_scripts_dir }}/bin/{{ item | basename | regex_replace('\\.j2$') }}"
+    mode: u=rwx,g=r,o-rwx
+  loop:
+    - create-domain.sh.j2
+    - config-domain.sh.j2
+    - config-server.sh.j2
+    - extend-domain.sh.j2
+    - convert-to-jdbc-store.sh.j2
+    - fix-bam-jms.sh.j2
+    - admin-nodemanager.sh.j2
