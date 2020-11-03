@@ -1,0 +1,13 @@
+---
+# tasks file for oracle-soa-install-role
+- name: create directories
+  import_tasks: create-directory.yml
+
+- name: install java
+  import_tasks: install-java.yml
+
+- name: install FMW infrastructure
+  import_tasks: install-fmw-infrastructure.yml
+
+- name: install soa suite
+  import_tasks: install-soa-suite.yml

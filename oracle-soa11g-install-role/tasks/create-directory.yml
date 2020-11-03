@@ -1,0 +1,9 @@
+---
+# create fmw directories
+- name: create oracle products directory
+  file:
+    path: "{{ oracle_home }}"
+    state: directory
+    recurse: yes
+    group: "{{ fmw_group }}"
+    mode: g+rw
