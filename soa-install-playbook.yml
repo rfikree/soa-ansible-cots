@@ -8,5 +8,5 @@
     soa_jar_file: fmw_12.2.1.3.0_soa.jar
 
   roles:
-    - soa-server-config-role
-    - oracle-soa-install-role
+    - soa12c-server-config-role
+    - oracle-soa12c-install-role

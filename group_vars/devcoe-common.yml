@@ -1,0 +1,19 @@
+---
+install_user: optadm
+install_group: appadms
+downloads_dir:
+  java: /cpg/3rdParty/downloads/Oracle/Java
+  weblogic11g: /cpg/3rdParty/downloads/Oracle/WebLogic11g
+  weblogic12c: /cpg/3rdParty/downloads/Oracle/WebLogic12c
+  weblogic14c: /cpg/3rdParty/downloads/Oracle/WebLogic14c
+  soa11g: /cpg/3rdParty/downloads/Oracle/SOASuite11g
+patches_dir:
+  weblogic11g: "{{downloads_dir.WebLogic11g}}/patches"
+  weblogic12c: "{{downloads_dir.WebLogic12c}}/patches"
+  weblogic14c: "{{downloads_dir.WebLogic14c}}/patches"
+  soa11g: "{{downloads_dir.soa11g}}/patches"
+installs_dir:
+  java: /cpg/3rdParty/installs/java
+  fmw: /cpg/3rdParty/installs/Oracle
+domain_root_dir: /cpg/cpo_apps
+log_root_dir: /cpg/cpo_var
