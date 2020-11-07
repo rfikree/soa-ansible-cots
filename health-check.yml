@@ -1,0 +1,10 @@
+---
+- hosts: "{{ cpg_hosts }}"
+  gather_facts: no
+
+  tasks:
+    - name: validate user
+      become: yes
+      shell:
+        cmd: svcs -a |grep site
+      register: svcs_out

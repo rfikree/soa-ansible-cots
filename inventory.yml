@@ -1,24 +1,83 @@
-all:
+dev_cpo:
   hosts:
-    soa_server_1:
-      ansible_host: 192.168.99.90
-    soa_server_2:
-      ansible_host: 192.168.99.91
-
-stack_a5d50:
-  hosts:
-    soa_server_1:
-      ansible_host: 192.168.99.90
+    dev_wladm_mgnt:
+      ansible_host: dev-wladm-mgnt
       is_admin_server: yes
-    soa_server_2:
-      ansible_host: 192.168.99.91
+    dev_a_uicpo_mgnt:
+      ansible_host: dev-a-uicpo-mgnt
+    dev_b_uicpo_mgnt:
+      ansible_host: dev-b-uicpo-mgnt
+    dev_a_blwscpo_mgnt:
+      ansible_host: dev-a-blwscpo-mgnt
+    dev_b_blwscpo_mgnt:
+      ansible_host: dev-b-blwscpo-mgnt
 
-stack_a5s50:
+dev_soa:
   hosts:
-    soa_server_2:
-      ansible_host: 192.168.99.91
-  children:
-    a5s50d1:
-      hosts:
-        soa_server_2:
-          ansible_host: 192.168.99.91
+    dev_wladm_mgnt:
+      ansible_host: dev-wladm-mgnt
+      is_admin_server: yes
+    dev_a_soaz0_mgnt:
+      ansible_host: dev-a-soaz0-mgnt
+    dev_a_soaz1_mgnt:
+      ansible_host: dev-a-soaz1-mgnt
+
+stg_cpo:
+  hosts:
+    stg_wladm_mgnt:
+      ansible_host: stg-wladm-mgnt
+      is_admin_server: yes
+    stg_a_uicpo_mgnt:
+      ansible_host: stg-a-uicpo-mgnt
+    stg_b_uicpo_mgnt:
+      ansible_host: stg-b-uicpo-mgnt
+    stg_a_blwscpo_mgnt:
+      ansible_host: stg-a-blwscpo-mgnt
+    stg_b_blwscpo_mgnt:
+      ansible_host: stg-b-blwscpo-mgnt
+
+stg_soa:
+  hosts:
+    stg_wladm_mgnt:
+      ansible_host: stg-wladm-mgnt
+      is_admin_server: yes
+    stg_a_soaz0_mgnt:
+      ansible_host: stg-a-soaz0-mgnt
+    stg_a_soaz1_mgnt:
+      ansible_host: stg-a-soaz1-mgnt
+    stg_b_soaz0_mgnt:
+      ansible_host: stg-b-soaz0-mgnt
+    stg_b_soaz1_mgnt:
+      ansible_host: stg-b-soaz1-mgnt
+
+prd_cpo:
+  hosts:
+    prd_wladm_mgnt:
+      ansible_host: prd-wladm-mgnt
+      is_admin_server: yes
+    prd_a_uicpo_mgnt:
+      ansible_host: prd-a-uicpo-mgnt
+    prd_b_uicpo_mgnt:
+      ansible_host: prd-b-uicpo-mgnt
+    prd_c_uicpo_mgnt:
+      ansible_host: prd-c-uicpo-mgnt
+    prd_a_blwscpo_mgnt:
+      ansible_host: prd-a-blwscpo-mgnt
+    prd_b_blwscpo_mgnt:
+      ansible_host: prd-b-blwscpo-mgnt
+    prd_c_blwscpo_mgnt:
+      ansible_host: prd-c-blwscpo-mgnt
+
+prd_soa:
+  hosts:
+    prd_wladm_mgnt:
+      ansible_host: prd-wladm-mgnt
+      is_admin_server: yes
+    stg_a_soaz0_mgnt:
+      ansible_host: prd-a-soaz0-mgnt
+    stg_a_soaz1_mgnt:
+      ansible_host: prd-a-soaz1-mgnt
+    stg_b_soaz0_mgnt:
+      ansible_host: prd-b-soaz0-mgnt
+    stg_b_soaz1_mgnt:
+      ansible_host: prd-b-soaz1-mgnt
